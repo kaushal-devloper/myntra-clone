@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "myntra",
+    "slug": "myntra",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/myntra.png",
+    "scheme": "myntra",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#ff3f6c",
+        "foregroundImage": "./assets/images/myntra.png",
+        "backgroundImage": "./assets/images/myntra.png",
+        "monochromeImage": "./assets/images/myntra.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.myntra"
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/myntra.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
