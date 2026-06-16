@@ -1,0 +1,8 @@
+{
+  "name": "myntra-clone-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cd myntra && npm install && npx expo export --platform web && cd .. && mkdir -p public && cp -r myntra/dist/. public/"
+  }
+}
