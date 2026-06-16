@@ -3,17 +3,25 @@ import Constants from 'expo-constants';
 
 export const getApiBaseUrl = () => {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
-  
+
   if (Platform.OS === 'web') {
-    // During local development on web, bypass the tunnel to avoid CORS preflight issues with Localtunnel
-    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      return `http://${window.location.hostname}:5000`;
+    // In production (Netlify), always use the env var pointing to Render backend
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      // Only use localhost in local dev
+      if (host === 'localhost' || host === '127.0.0.1') {
+        return `http://${host}:5000`;
+      }
+      // Production: use EXPO_PUBLIC_API_URL set in Netlify dashboard
+      if (envUrl && envUrl.trim() !== '') {
+        return envUrl.trim();
+      }
     }
-    return envUrl || "http://localhost:5000";
+    return envUrl || 'http://localhost:5000';
   }
 
   // Use the public API URL if it's set and not localhost (for mobile tunnels)
-  if (envUrl && envUrl.trim() !== '' && !envUrl.includes("localhost")) {
+  if (envUrl && envUrl.trim() !== '' && !envUrl.includes('localhost')) {
     return envUrl.trim();
   }
 
@@ -24,12 +32,12 @@ export const getApiBaseUrl = () => {
     if (ip && !ip.includes('ngrok') && !ip.includes('loca.lt') && !ip.includes('exp.direct')) {
       // Handle Android emulator localhost issue
       if (Platform.OS === 'android' && (ip === '127.0.0.1' || ip === 'localhost')) {
-        return "http://10.0.2.2:5000";
+        return 'http://10.0.2.2:5000';
       }
       return `http://${ip}:5000`;
     }
   }
 
   // Fallback to local machine IP for physical Android testing
-  return Platform.OS === 'android' ? "http://192.168.0.108:5000" : "http://localhost:5000";
+  return Platform.OS === 'android' ? 'http://192.168.0.108:5000' : 'http://localhost:5000';
 };
