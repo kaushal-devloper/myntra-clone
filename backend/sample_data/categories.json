@@ -1,0 +1,56 @@
+[
+  {
+    "_id": { "$oid": "64b0f9a2d392a812345678a1" },
+    "name": "Men",
+    "subcategory": [
+      "T-Shirts",
+      "Shirts",
+      "Jeans",
+      "Trousers",
+      "Suits",
+      "Activewear"
+    ],
+    "image": "https://images.unsplash.com/photo-1617137968427-85924c800a22?w=500&auto=format&fit=crop",
+    "productId": [
+      { "$oid": "64b0f9a2d392a81234567890" },
+      { "$oid": "64b0f9a2d392a81234567891" }
+    ],
+    "createdAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "updatedAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "__v": 0
+  },
+  {
+    "_id": { "$oid": "64b0f9a2d392a812345678a2" },
+    "name": "Women",
+    "subcategory": [
+      "Dresses",
+      "Tops",
+      "Ethnic Wear",
+      "Western Wear",
+      "Activewear"
+    ],
+    "image": "https://images.unsplash.com/photo-1618244972963-dbad0c4abf18?w=500&auto=format&fit=crop",
+    "productId": [
+      { "$oid": "64b0f9a2d392a81234567892" }
+    ],
+    "createdAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "updatedAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "__v": 0
+  },
+  {
+    "_id": { "$oid": "64b0f9a2d392a812345678a3" },
+    "name": "Kids",
+    "subcategory": [
+      "Boys Clothing",
+      "Girls Clothing",
+      "Infants",
+      "Toys",
+      "School Essentials"
+    ],
+    "image": "https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?w=500&auto=format&fit=crop",
+    "productId": [],
+    "createdAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "updatedAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "__v": 0
+  }
+]

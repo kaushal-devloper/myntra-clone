@@ -1,0 +1,32 @@
+[
+  {
+    "_id": { "$oid": "64b0f9a2d392a81234567890" },
+    "name": "Casual White T-Shirt",
+    "brand": "Roadster",
+    "price": 499,
+    "image": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&auto=format&fit=crop",
+    "createdAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "updatedAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "__v": 0
+  },
+  {
+    "_id": { "$oid": "64b0f9a2d392a81234567891" },
+    "name": "Denim Jacket",
+    "brand": "Levis",
+    "price": 2499,
+    "image": "https://images.unsplash.com/photo-1523205771623-e0faa4d2813d?w=500&auto=format&fit=crop",
+    "createdAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "updatedAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "__v": 0
+  },
+  {
+    "_id": { "$oid": "64b0f9a2d392a81234567892" },
+    "name": "Summer Dress",
+    "brand": "ONLY",
+    "price": 1299,
+    "image": "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=500&auto=format&fit=crop",
+    "createdAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "updatedAt": { "$date": "2024-01-01T00:00:00.000Z" },
+    "__v": 0
+  }
+]

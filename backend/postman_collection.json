@@ -1,0 +1,480 @@
+{
+	"info": {
+		"_postman_id": "a189f7fb-e0fa-4d1a-9694-df74f07a7590",
+		"name": "Myntra Clone Notification System API",
+		"description": "API collection for testing the complete backend notification system, token management, secure registrations, history, and single/bulk push notification triggers.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "User Signup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"fullName\": \"Jane Doe\",\n    \"email\": \"jane.doe@example.com\",\n    \"password\": \"securepassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/signup",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"signup"
+							]
+						},
+						"description": "Registers a new user and returns user details alongside a secure JWT auth token."
+					},
+					"response": []
+				},
+				{
+					"name": "User Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"jane.doe@example.com\",\n    \"password\": \"securepassword123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/users/login",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"users",
+								"login"
+							]
+						},
+						"description": "Authenticates user and returns user details alongside a secure JWT auth token."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Push Token Management",
+			"item": [
+				{
+					"name": "Register Device Token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "bypass-tunnel-reminder",
+								"value": "true"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userId\": \"{{userId}}\",\n    \"token\": \"ExponentPushToken[Mock-android-Jane]\",\n    \"expoPushToken\": \"ExponentPushToken[Mock-android-Jane]\",\n    \"platform\": \"android\",\n    \"deviceId\": \"android-mock-device-id-123\",\n    \"appVersion\": \"1.0.0\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/register",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"register"
+							]
+						},
+						"description": "Registers or updates an Expo push token for an authenticated user's device. Requires Bearer Token authorization."
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Device Token",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "bypass-tunnel-reminder",
+								"value": "true"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userId\": \"{{userId}}\",\n    \"deviceId\": \"android-mock-device-id-123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/remove",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"remove"
+							]
+						},
+						"description": "Removes a device push token from the database (e.g. upon user logout). Requires Bearer Token authorization."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Trigger Push Notifications",
+			"item": [
+				{
+					"name": "Send Single User Notification (Admin Bypass)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-admin-key",
+								"value": "{{adminKey}}"
+							},
+							{
+								"key": "bypass-tunnel-reminder",
+								"value": "true"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userId\": \"{{userId}}\",\n    \"title\": \"Order ORD987654 Shipped! 📦\",\n    \"body\": \"Your Myntra package has been shipped and will reach you by Saturday.\",\n    \"type\": \"order_update\",\n    \"data\": {\n        \"notificationType\": \"order_update\",\n        \"route\": \"/orders\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/send",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"send"
+							]
+						},
+						"description": "Triggers a real-time notification to a specific user. Authenticated using x-admin-key bypass header."
+					},
+					"response": []
+				},
+				{
+					"name": "Send Bulk Notifications (Admin Bypass)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-admin-key",
+								"value": "{{adminKey}}"
+							},
+							{
+								"key": "bypass-tunnel-reminder",
+								"value": "true"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"End of Reason Sale starts NOW! 🔥\",\n    \"body\": \"Flat 50-80% OFF on all clothing brands. Tap to explore our deals.\",\n    \"type\": \"promotional\",\n    \"data\": {\n        \"notificationType\": \"promotional\",\n        \"route\": \"/(tabs)/index\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/send-bulk",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"send-bulk"
+							]
+						},
+						"description": "Sends a bulk notification to all registered users (or specific userIds if provided in array format). Authenticated via x-admin-key."
+					},
+					"response": []
+				},
+				{
+					"name": "Schedule Notification (Admin Bypass)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-admin-key",
+								"value": "{{adminKey}}"
+							},
+							{
+								"key": "bypass-tunnel-reminder",
+								"value": "true"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userId\": \"{{userId}}\",\n    \"title\": \"Out for Delivery! 🚚\",\n    \"body\": \"Our delivery partner is on the way to your shipping address.\",\n    \"type\": \"delivery_alert\",\n    \"delaySeconds\": 10,\n    \"data\": {\n        \"notificationType\": \"delivery_alert\",\n        \"route\": \"/orders\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/schedule",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"schedule"
+							]
+						},
+						"description": "Schedules a delayed push notification to a user for testing background & terminated app behaviors. Authenticated via x-admin-key."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Notification History Logs",
+			"item": [
+				{
+					"name": "Get User Notification History Logs",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "bypass-tunnel-reminder",
+								"value": "true"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/logs/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"logs",
+								"{{userId}}"
+							]
+						},
+						"description": "Fetches the notification logs history for the authenticated user. Requires Bearer Token."
+					},
+					"response": []
+				},
+				{
+					"name": "Mark Notification as Read",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "bypass-tunnel-reminder",
+								"value": "true"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/logs/{{logId}}/read",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"logs",
+								"{{logId}}",
+								"read"
+							]
+						},
+						"description": "Marks a specific notification history log as read. Requires Bearer Token."
+					},
+					"response": []
+				},
+				{
+					"name": "Mark All Notifications as Read",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "bypass-tunnel-reminder",
+								"value": "true"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/logs/user/{{userId}}/read-all",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"logs",
+								"user",
+								"{{userId}}",
+								"read-all"
+							]
+						},
+						"description": "Marks all notification logs as read for the authenticated user. Requires Bearer Token."
+					},
+					"response": []
+				},
+				{
+					"name": "Clear Notification History Logs",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwtToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "bypass-tunnel-reminder",
+								"value": "true"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/notifications/logs/user/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"notifications",
+								"logs",
+								"user",
+								"{{userId}}"
+							]
+						},
+						"description": "Clears the complete notification history logs for the authenticated user. Requires Bearer Token."
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://127.0.0.1:5000",
+			"type": "string"
+		},
+		{
+			"key": "jwtToken",
+			"value": "YOUR_JWT_TOKEN_HERE",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "YOUR_USER_ID_HERE",
+			"type": "string"
+		},
+		{
+			"key": "logId",
+			"value": "YOUR_LOG_ID_HERE",
+			"type": "string"
+		},
+		{
+			"key": "adminKey",
+			"value": "myntra_admin_secret_key",
+			"type": "string"
+		}
+	]
+}

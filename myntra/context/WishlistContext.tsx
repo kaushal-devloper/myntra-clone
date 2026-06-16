@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import * as SecureStore from "expo-secure-store";
+import axios from "axios";
 import { useAuth } from "./AuthContext";
+import { getApiBaseUrl } from "@/utils/apiBaseUrl";
 
 export interface WishlistItem {
-  id: number;
+  id: string;
   name: string;
   brand: string;
-  price: string;
+  price: string | number;
   discount: string;
   image: string;
 }
@@ -14,77 +15,101 @@ export interface WishlistItem {
 type WishlistContextType = {
   wishlist: WishlistItem[];
   addToWishlist: (item: WishlistItem) => Promise<void>;
-  removeFromWishlist: (itemId: number) => Promise<void>;
-  isInWishlist: (itemId: number) => boolean;
+  removeFromWishlist: (itemId: string) => Promise<void>;
+  isInWishlist: (itemId: string) => boolean;
   clearWishlist: () => Promise<void>;
 };
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
-const canUseSecureStore =
-  typeof SecureStore?.getItemAsync === "function" &&
-  typeof SecureStore?.setItemAsync === "function" &&
-  typeof SecureStore?.deleteItemAsync === "function";
-
 export const WishlistProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, isAuthenticated } = useAuth();
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
 
-  // Load wishlist when user changes or logs in
   useEffect(() => {
-    if (isAuthenticated && user?._id) {
-      (async () => {
+    if (isAuthenticated && user) {
+      const fetchWishlist = async () => {
         try {
-          if (canUseSecureStore) {
-            const stored = await SecureStore.getItemAsync(`wishlist_${user._id}`);
-            if (stored) {
-              setWishlist(JSON.parse(stored));
-            } else {
-              setWishlist([]);
-            }
+          const apiBaseUrl = getApiBaseUrl();
+          const userId = (user as any)._id || (user as any).id;
+          const res = await axios.get(`${apiBaseUrl}/api/users/wishlist/${userId}`);
+          
+          if (Array.isArray(res.data)) {
+            const mapped = res.data
+              .filter((item: any) => item.productId)
+              .map((item: any) => ({
+                id: String(item.productId._id || item.productId.id || ''),
+                name: item.productId.name,
+                brand: item.productId.brand,
+                price: item.productId.price,
+                discount: item.productId.discount || '',
+                image: item.productId.image || (item.productId.images && item.productId.images[0]) || '',
+              }));
+            setWishlist(mapped);
           }
-        } catch (e) {
-          console.error("Error loading wishlist from SecureStore:", e);
-          setWishlist([]);
+        } catch (error) {
+          console.error("Error fetching wishlist:", error);
         }
-      })();
+      };
+      fetchWishlist();
     } else {
       setWishlist([]);
     }
   }, [user, isAuthenticated]);
 
-  const saveWishlist = async (items: WishlistItem[]) => {
-    setWishlist(items);
-    if (isAuthenticated && user?._id && canUseSecureStore) {
+  const addToWishlist = async (item: WishlistItem) => {
+    if (!isAuthenticated || !user) return;
+    const itemId = String(item.id || (item as any)._id || '');
+    const exists = wishlist.some((i) => String(i.id || (i as any)._id) === itemId);
+    if (!exists) {
+      // Optimistic update
+      setWishlist((prev) => [...prev, { ...item, id: itemId }]);
       try {
-        await SecureStore.setItemAsync(`wishlist_${user._id}`, JSON.stringify(items));
-      } catch (e) {
-        console.error("Error saving wishlist to SecureStore:", e);
+        const apiBaseUrl = getApiBaseUrl();
+        const userId = (user as any)._id || (user as any).id;
+        await axios.post(`${apiBaseUrl}/api/users/wishlist/add`, {
+          userId,
+          productId: itemId,
+        });
+      } catch (error) {
+        console.error("Error adding to wishlist:", error);
+        // Revert on failure
+        setWishlist((prev) => prev.filter((i) => String(i.id || (i as any)._id) !== itemId));
       }
     }
   };
 
-  const addToWishlist = async (item: WishlistItem) => {
-    if (!isAuthenticated) return;
-    const exists = wishlist.some((i) => i.id === item.id);
-    if (!exists) {
-      const updated = [...wishlist, item];
-      await saveWishlist(updated);
+  const removeFromWishlist = async (itemId: string) => {
+    if (!isAuthenticated || !user) return;
+    const id = String(itemId);
+    const itemToRemove = wishlist.find((i) => String(i.id || (i as any)._id) === id);
+    // Optimistic update — remove immediately for instant UI feedback
+    setWishlist((prev) => prev.filter((i) => String(i.id || (i as any)._id) !== id));
+    
+    try {
+      const apiBaseUrl = getApiBaseUrl();
+      const userId = (user as any)._id || (user as any).id;
+      await axios.delete(`${apiBaseUrl}/api/users/wishlist/remove`, {
+        data: { userId, productId: id },
+      });
+    } catch (error) {
+      console.error("Error removing from wishlist:", error);
+      // Revert on failure
+      if (itemToRemove) {
+        setWishlist((prev) => [...prev, itemToRemove]);
+      }
     }
   };
 
-  const removeFromWishlist = async (itemId: number) => {
-    if (!isAuthenticated) return;
-    const updated = wishlist.filter((i) => i.id !== itemId);
-    await saveWishlist(updated);
-  };
-
-  const isInWishlist = (itemId: number) => {
-    return wishlist.some((i) => i.id === itemId);
+  const isInWishlist = (itemId: string) => {
+    const id = String(itemId);
+    return wishlist.some((i) => String(i.id || (i as any)._id) === id);
   };
 
   const clearWishlist = async () => {
-    await saveWishlist([]);
+    setWishlist([]);
+    // The backend doesn't have a clear wishlist API currently, but typically not needed
+    // except if we want a clear button.
   };
 
   return (

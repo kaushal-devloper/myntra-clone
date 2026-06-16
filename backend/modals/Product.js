@@ -3,11 +3,14 @@ const ProductSchema = new mongoose.Schema(
   {
     name: String,
     brand: String,
-    price: Number,
-    discount: String,
-    description: String,
-    sizes: [String],
+    price: { type: Number, required: true },
+    image: String,
     images: [String],
+    stock: { type: Number, required: true },
+    discontinued: { type: Boolean, default: false },
+    sizes: [String],
+    description: String,
+    discount: String
   },
   { timestamps: true }
 );

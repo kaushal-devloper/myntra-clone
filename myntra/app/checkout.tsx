@@ -10,10 +10,25 @@ import {
   View,
 } from 'react-native';
 
+import { useAuth } from '@/context/AuthContext';
+import axios from 'axios';
+import { getApiBaseUrl } from '@/utils/apiBaseUrl';
+
 export default function Checkout() {
   const router = useRouter();
+  const { user } = useAuth();
 
-  const handleplaceorder = () => {
+  const handleplaceorder = async () => {
+    if (user) {
+      try {
+        const apiBaseUrl = getApiBaseUrl();
+        await axios.post(`${apiBaseUrl}/api/bag/clear`, {
+          userId: (user as any)._id || (user as any).id,
+        });
+      } catch (err) {
+        console.error("Error clearing bag on checkout:", err);
+      }
+    }
     router.push('/order/confirmation' as any);
   };
 

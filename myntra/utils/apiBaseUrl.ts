@@ -30,6 +30,6 @@ export const getApiBaseUrl = () => {
     }
   }
 
-  // Fallback to Android emulator IP or local machine IP
-  return Platform.OS === 'android' ? "http://10.0.2.2:5000" : "http://localhost:5000";
+  // Fallback to local machine IP for physical Android testing
+  return Platform.OS === 'android' ? "http://192.168.0.108:5000" : "http://localhost:5000";
 };

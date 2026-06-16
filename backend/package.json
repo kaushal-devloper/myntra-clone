@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node routes/server.js",
     "dev": "nodemon routes/server.js",
+    "android": "npx expo run:android",
+    "clean": "cd android && gradlew clean",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,10 +16,15 @@
   "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "bullmq": "^5.8.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.6.2"
+    "mongoose": "^9.6.2",
+    "node-cron": "^3.0.3",
+    "pdfkit": "^0.19.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

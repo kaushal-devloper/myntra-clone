@@ -2,8 +2,9 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useRouter } from 'expo-router';
-import { ChevronRight, Heart } from 'lucide-react-native';
+import { ChevronRight, Heart, Bell } from 'lucide-react-native';
 import React from 'react';
+import { useNotifications } from '@/context/NotificationContext';
 import {
   FlatList,
   Image,
@@ -15,72 +16,12 @@ import {
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import { useWishlist } from '@/context/WishlistContext';
-
-const categories = [
-  {
-    id: 1,
-    name: 'Men',
-    image:
-      'https://images.unsplash.com/photo-1617137968427-85924c800a22?w=500&auto=format&fit=crop',
-  },
-  {
-    id: 2,
-    name: 'Women',
-    image:
-      'https://images.unsplash.com/photo-1618244972963-dbad0c4abf18?w=500&auto=format&fit=crop',
-  },
-  {
-    id: 3,
-    name: 'Kids',
-    image:
-      'https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?w=500&auto=format&fit=crop',
-  },
-  {
-    id: 4,
-    name: 'Beauty',
-    image:
-      'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=500&auto=format&fit=crop',
-  },
-];
-
-const products = [
-  {
-    id: 1,
-    name: 'Casual White T-Shirt',
-    brand: 'Roadster',
-    price: '₹499',
-    discount: '60% OFF',
-    image:
-      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&auto=format&fit=crop',
-  },
-  {
-    id: 2,
-    name: 'Denim Jacket',
-    brand: 'Levis',
-    price: '₹2499',
-    discount: '40% OFF',
-    image:
-      'https://images.unsplash.com/photo-1523205771623-e0faa4d2813d?w=500&auto=format&fit=crop',
-  },
-  {
-    id: 3,
-    name: 'Summer Dress',
-    brand: 'ONLY',
-    price: '₹1299',
-    discount: '50% OFF',
-    image:
-      'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=500&auto=format&fit=crop',
-  },
-  {
-    id: 4,
-    name: 'Classic Sneakers',
-    brand: 'Nike',
-    price: '₹3499',
-    discount: '30% OFF',
-    image:
-      'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop',
-  },
-];
+import { useAppTheme } from '@/context/ThemeContext';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from 'expo-router';
+import axios from 'axios';
+import { getApiBaseUrl } from '@/utils/apiBaseUrl';
+import { formatPriceDetail, getProductDiscount } from '@/utils/priceFormatter';
 
 const deals = [
   {
@@ -99,17 +40,117 @@ const deals = [
 
 export default function HomeScreen() {
   const route = useRouter();
-
   const { user } = useAuth();
   const isAuthenticated = !!user;
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { unreadCount } = useNotifications();
+  const { theme, isDark } = useAppTheme();
 
-  const handleSearchPress = (productID: number) => {
+  const [recentlyViewed, setRecentlyViewed] = React.useState<any[]>([]);
+  const [categories, setCategories] = React.useState<any[]>([]);
+  const [products, setProducts] = React.useState<any[]>([]);
+  const [discountedProducts, setDiscountedProducts] = React.useState<any[]>([]);
+  const [brands, setBrands] = React.useState<any[]>([]);
+  const [recommendations, setRecommendations] = React.useState<any[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = React.useState(false);
+
+  React.useEffect(() => {
+    const fetchHomeData = async () => {
+      try {
+        const apiBaseUrl = getApiBaseUrl();
+        const catRes = await axios.get(`${apiBaseUrl}/category`);
+        setCategories(Array.isArray(catRes.data) ? catRes.data : catRes.data?.data ?? []);
+
+        const prodRes = await axios.get(`${apiBaseUrl}/product`);
+        const allProds = (prodRes.data ?? []).map((p: any) => ({
+          ...p,
+          discount: p.discount || getProductDiscount(p)
+        }));
+        setProducts(allProds.slice(0, 10)); // Top 10 products for trending
+
+        const discount40to70 = allProds.filter((p: any) => {
+          if (!p.discount) return false;
+          const val = parseInt(p.discount.replace(/[^0-9]/g, '')) || 0;
+          return val >= 40 && val <= 70;
+        });
+        setDiscountedProducts(discount40to70.slice(0, 10));
+
+        const targetBrands = ["Adidas", "Roadster", "H&M", "Gucci"];
+        const brandLogos: Record<string, string> = {
+          "Adidas": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop",
+          "Roadster": "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=500&auto=format&fit=crop",
+          "H&M": "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=500&auto=format&fit=crop",
+          "Gucci": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=500&auto=format&fit=crop"
+        };
+        const uniqueBrands = targetBrands.map(brandName => ({
+          id: brandName,
+          name: brandName,
+          image: brandLogos[brandName]
+        }));
+        setBrands(uniqueBrands);
+      } catch (err) {
+        console.error("Error fetching home data", err);
+      }
+    };
+    fetchHomeData();
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchRecent = async () => {
+        try {
+          const storageKey = user ? `recentlyViewed_${(user as any)._id || (user as any).id}` : 'recentlyViewed';
+          const stored = await AsyncStorage.getItem(storageKey);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            setRecentlyViewed(parsed.map((p: any) => ({
+              ...p,
+              discount: p.discount || getProductDiscount(p)
+            })));
+          } else {
+            setRecentlyViewed([]);
+          }
+        } catch (e) {
+          console.log("Error fetching recently viewed", e);
+        }
+      };
+      fetchRecent();
+
+      const fetchRecommendations = async () => {
+        setLoadingRecommendations(true);
+        try {
+          const apiBaseUrl = getApiBaseUrl();
+          let url = `${apiBaseUrl}/api/recommendations/?t=${Date.now()}`;
+          if (user) {
+            const userId = (user as any)._id || (user as any).id;
+            url = `${apiBaseUrl}/api/recommendations/${userId}?t=${Date.now()}`;
+          }
+          const res = await axios.get(url, { timeout: 8000 });
+          if (res.data?.success) {
+            const mappedRecs = (res.data.recommendations || []).map((p: any) => ({
+              ...p,
+              discount: p.discount || getProductDiscount(p)
+            }));
+            setRecommendations(mappedRecs);
+          } else {
+            setRecommendations([]);
+          }
+        } catch (e) {
+          console.error("Error fetching recommendations", e);
+          setRecommendations([]);
+        } finally {
+          setLoadingRecommendations(false);
+        }
+      };
+      fetchRecommendations();
+    }, [user])
+  );
+
+  const handleSearchPress = (productID: any) => {
     if (!isAuthenticated) {
       route.push('/login' as any);
       return;
     }
-
     route.push(`/product/${productID}` as any);
   };
 
@@ -118,36 +159,58 @@ export default function HomeScreen() {
       route.push('/login' as any);
       return;
     }
-    if (isInWishlist(item.id)) {
-      removeFromWishlist(item.id);
+    const itemId = String(item._id || item.id || '');
+    if (isInWishlist(itemId)) {
+      removeFromWishlist(itemId);
     } else {
-      addToWishlist(item);
+      addToWishlist({
+        id: itemId,
+        name: item.name,
+        brand: item.brand,
+        price: item.price,
+        discount: item.discount || '',
+        image: item.image || (item.images && item.images[0]) || '',
+      });
     }
   };
 
   return (
     <ParallaxScrollView
-      headerBackgroundColor={{ light: '#ffffff', dark: '#ffffff' }}
+      headerBackgroundColor={{ light: theme.colors.card, dark: theme.colors.card }}
       headerImage={
         <Image
-          source={require('@/assets/images/myntra.png')}
-          style={styles.reactLogo}
+          source={require('../../assets/images/myntra.png')}
+          style={[styles.reactLogo, { backgroundColor: theme.colors.card }]}
         />
       }
     >
       {/* Header */}
-      <ThemedView style={styles.header}>
+      <ThemedView style={[styles.header, { borderBottomColor: theme.colors.borderLight }]}>
         <Text style={styles.logo}>MYNTRA</Text>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={[styles.notificationButton, { backgroundColor: theme.colors.inputBackground }]}
+          onPress={() => route.push('/notification-center' as any)}
+        >
+          <Bell size={24} color={theme.colors.text} />
+          {unreadCount > 0 && (
+            <View style={[styles.badge, { backgroundColor: theme.colors.primary }]}>
+              <Text style={styles.badgeText}>
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </ThemedView>
 
       {/* SHOP BY CATEGORY */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>SHOP BY CATEGORY</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>SHOP BY CATEGORY</Text>
 
           <TouchableOpacity style={styles.viewAll}>
             <Text style={styles.viewAllText}>View All</Text>
-            <ChevronRight size={20} color="#ff3f6c" />
+            <ChevronRight size={20} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -156,50 +219,55 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           style={styles.categoriesScroll}
         >
-          {categories.map((category) => (
+          {categories.map((category: any, index: number) => (
             <TouchableOpacity
-              key={category.id}
-              style={styles.categoryCard}
-              onPress={() => route.push('/(tabs)/categories' as any)}
+              key={category._id || category.id || `category-${index}`}
+              style={[styles.categoryCard, { backgroundColor: theme.colors.card }]}
+              onPress={() => route.push(`/(tabs)/categories?categoryId=${category._id || category.id}` as any)}
             >
               <Image
                 source={{ uri: category.image }}
                 style={styles.categoryImage}
               />
-
-              <Text style={styles.categoryName}>{category.name}</Text>
+              <Text style={[styles.categoryName, { color: theme.colors.text }]}>{category.name}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
-      {/* FEATURED */}
+      {/* BRANDS */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <ThemedText
-            type="defaultSemiBold"
-            style={styles.sectionTitle}
-          >
-            Featured
-          </ThemedText>
-
-          <TouchableOpacity style={styles.viewAll}>
-            <Text style={styles.viewAllText}>View All</Text>
-            <ChevronRight size={20} color="#ff3f6c" />
-          </TouchableOpacity>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>SHOP BY BRAND</Text>
         </View>
 
-        <ThemedView style={styles.placeholderSection}>
-          <ThemedText>
-            {`Products: ${products.length} • Deals: ${deals.length}`}
-          </ThemedText>
-        </ThemedView>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoriesScroll}
+        >
+          {brands.map((brand: any, index: number) => (
+            <TouchableOpacity
+              key={brand.id || `brand-${index}`}
+              style={styles.brandCard}
+              onPress={() => route.push(`/(tabs)/categories?brand=${encodeURIComponent(brand.name)}` as any)}
+            >
+              <View style={[styles.brandImageContainer, { backgroundColor: theme.colors.inputBackground, borderColor: theme.colors.border }]}>
+                <Image
+                  source={{ uri: brand.image }}
+                  style={styles.brandImage}
+                />
+              </View>
+              <Text style={[styles.brandName, { color: theme.colors.text }]}>{brand.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* DEALS OF THE DAY */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>DEALS OF THE DAY</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>DEALS OF THE DAY</Text>
         </View>
 
         <FlatList
@@ -211,18 +279,17 @@ export default function HomeScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity
               activeOpacity={0.85}
-              style={styles.dealCard}
+              style={[styles.dealCard, { backgroundColor: theme.colors.card }]}
+              onPress={() => route.push(`/(tabs)/categories?deal=${encodeURIComponent(item.title)}` as any)}
             >
               <Image
                 source={{ uri: item.image }}
                 style={styles.dealImage}
               />
-
-              {/* glow + overlay */}
               <View style={styles.dealGlow} />
               <View style={styles.dealOverlay}>
                 <Text style={styles.dealTitle}>{item.title}</Text>
-                <View style={styles.dealBadge}>
+                <View style={[styles.dealBadge, { backgroundColor: theme.colors.primary }]}>
                   <Text style={styles.dealBadgeText}>Limited</Text>
                 </View>
               </View>
@@ -231,57 +298,254 @@ export default function HomeScreen() {
         />
       </View>
 
+      {/* RECENTLY VIEWED PRODUCTS */}
+      {recentlyViewed.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>RECENTLY VIEWED</Text>
+            <TouchableOpacity
+              onPress={async () => {
+                const storageKey = user ? `recentlyViewed_${(user as any)._id || (user as any).id}` : 'recentlyViewed';
+                await AsyncStorage.removeItem(storageKey);
+                setRecentlyViewed([]);
+              }}
+            >
+              <Text style={styles.clearText}>Clear</Text>
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={recentlyViewed}
+            keyExtractor={(item, index) => String(item._id || item.id || `recent-${index}`)}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalListContent}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={[styles.recentProductCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+                onPress={() => handleSearchPress(item._id || item.id)}
+              >
+                <View style={[styles.recentImageContainer, { backgroundColor: theme.colors.inputBackground }]}>
+                  <Image
+                    source={{ uri: item.image || (item.images && item.images[0]) }}
+                    style={styles.recentImage}
+                    resizeMode="cover"
+                  />
+                  {item.discount && (
+                    <View style={[styles.productDiscountPill, { backgroundColor: theme.colors.primary }]}>
+                      <Text style={styles.productDiscountPillText}>{item.discount}</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.recentInfo}>
+                  <Text style={[styles.recentBrand, { color: theme.colors.textSecondary }]} numberOfLines={1}>{item.brand}</Text>
+                  <Text style={[styles.recentName, { color: theme.colors.text }]} numberOfLines={1}>{item.name}</Text>
+                  <Text style={[styles.recentPrice, { color: theme.colors.primary }]}>
+                    {formatPriceDetail(item.price, item.discount).formattedText}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
+
+      {/* 40-70% OFF DEALS */}
+      {discountedProducts.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>40-70% OFF DEALS</Text>
+            <TouchableOpacity style={styles.viewAll} onPress={() => route.push('/(tabs)/categories?deal=40-70% Off' as any)}>
+              <Text style={styles.viewAllText}>View All</Text>
+              <ChevronRight size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <FlatList
+            data={discountedProducts}
+            keyExtractor={(item, index) => String(item._id || item.id || `discount-${index}`)}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalListContent}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={[styles.productCard, { backgroundColor: theme.colors.card }]}
+                onPress={() => handleSearchPress(item._id || item.id)}
+              >
+                <View style={styles.productImageWrap}>
+                  <Image
+                    source={{ uri: item.image || (item.images && item.images[0]) }}
+                    style={styles.productImage}
+                  />
+                  <View style={[styles.productDiscountPill, { backgroundColor: theme.colors.primary }]}>
+                    <Text style={styles.productDiscountPillText}>
+                      {item.discount}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.productWishlistBtn, { backgroundColor: isDark ? 'rgba(30,30,30,0.85)' : 'rgba(255,255,255,0.85)' }]}
+                    activeOpacity={0.8}
+                    onPress={(e) => {
+                      if (e && e.stopPropagation) e.stopPropagation();
+                      handleWishlistPress(item);
+                    }}
+                  >
+                    <Heart
+                      size={18}
+                      color={isInWishlist(String(item._id || item.id || '')) ? theme.colors.primary : theme.colors.textSecondary}
+                      fill={isInWishlist(String(item._id || item.id || '')) ? theme.colors.primary : 'transparent'}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.productInfo}>
+                  <Text style={[styles.productBrand, { color: theme.colors.text }]}>{item.brand}</Text>
+                  <Text style={[styles.productName, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                    {item.name}
+                  </Text>
+
+                  <View style={styles.priceRow}>
+                    <Text style={[styles.productPrice, { color: theme.colors.text }]} numberOfLines={1}>
+                      {formatPriceDetail(item.price, item.discount).formattedText}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
+
+      {/* YOU MAY ALSO LIKE */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>YOU MAY ALSO LIKE</Text>
+        </View>
+
+        {loadingRecommendations ? (
+          <View style={[styles.placeholderSection, { backgroundColor: theme.colors.inputBackground }]}>
+            <Text style={{ color: theme.colors.textSecondary }}>Loading recommendations...</Text>
+          </View>
+        ) : recommendations.length === 0 ? (
+          <View style={[styles.placeholderSection, { backgroundColor: theme.colors.inputBackground }]}>
+            <Text style={{ color: theme.colors.textSecondary }}>Check back later for personalized recommendations!</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={recommendations}
+            keyExtractor={(item, index) => String(item._id || item.id || `recs-${index}`)}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalListContent}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={[styles.productCard, { backgroundColor: theme.colors.card }]}
+                onPress={() => handleSearchPress(item._id || item.id)}
+              >
+                <View style={styles.productImageWrap}>
+                  <Image
+                    source={{ uri: item.image || (item.images && item.images[0]) }}
+                    style={styles.productImage}
+                  />
+                  {item.discount && (
+                    <View style={[styles.productDiscountPill, { backgroundColor: theme.colors.primary }]}>
+                      <Text style={styles.productDiscountPillText}>
+                        {item.discount}
+                      </Text>
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={[styles.productWishlistBtn, { backgroundColor: isDark ? 'rgba(30,30,30,0.85)' : 'rgba(255,255,255,0.85)' }]}
+                    activeOpacity={0.8}
+                    onPress={(e) => {
+                      if (e && e.stopPropagation) e.stopPropagation();
+                      handleWishlistPress(item);
+                    }}
+                  >
+                    <Heart
+                      size={18}
+                      color={isInWishlist(String(item._id || item.id || '')) ? theme.colors.primary : theme.colors.textSecondary}
+                      fill={isInWishlist(String(item._id || item.id || '')) ? theme.colors.primary : 'transparent'}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.productInfo}>
+                  <Text style={[styles.productBrand, { color: theme.colors.text }]}>{item.brand}</Text>
+                  <Text style={[styles.productName, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                    {item.name}
+                  </Text>
+
+                  <View style={styles.priceRow}>
+                    <Text style={[styles.productPrice, { color: theme.colors.text }]} numberOfLines={1}>
+                      {formatPriceDetail(item.price, item.discount).formattedText}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        )}
+      </View>
 
       {/* TRENDING NOW */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>TRENDING NOW</Text>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>TRENDING NOW</Text>
         </View>
 
         <FlatList
           data={products}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={(item, index) => String(item._id || item.id || `trending-${index}`)}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.horizontalListContent}
           renderItem={({ item }) => (
             <TouchableOpacity
               activeOpacity={0.9}
-              style={styles.productCard}
-              onPress={() => handleSearchPress(item.id)}
+              style={[styles.productCard, { backgroundColor: theme.colors.card }]}
+              onPress={() => handleSearchPress(item._id || item.id)}
             >
               <View style={styles.productImageWrap}>
                 <Image
-                  source={{ uri: item.image }}
+                  source={{ uri: item.image || (item.images && item.images[0]) }}
                   style={styles.productImage}
                 />
-                <View style={styles.productDiscountPill}>
+                <View style={[styles.productDiscountPill, { backgroundColor: theme.colors.primary }]}>
                   <Text style={styles.productDiscountPillText}>
                     {item.discount}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.productWishlistBtn}
+                  style={[styles.productWishlistBtn, { backgroundColor: isDark ? 'rgba(30,30,30,0.85)' : 'rgba(255,255,255,0.85)' }]}
                   activeOpacity={0.8}
-                  onPress={() => handleWishlistPress(item)}
+                  onPress={(e) => {
+                    if (e && e.stopPropagation) e.stopPropagation();
+                    handleWishlistPress(item);
+                  }}
                 >
                   <Heart
                     size={18}
-                    color={isInWishlist(item.id) ? '#ff3f6c' : '#888'}
-                    fill={isInWishlist(item.id) ? '#ff3f6c' : 'transparent'}
+                    color={isInWishlist(String(item._id || item.id || '')) ? theme.colors.primary : theme.colors.textSecondary}
+                    fill={isInWishlist(String(item._id || item.id || '')) ? theme.colors.primary : 'transparent'}
                   />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.productInfo}>
-                <Text style={styles.productBrand}>{item.brand}</Text>
-                <Text style={styles.productName} numberOfLines={2}>
+                <Text style={[styles.productBrand, { color: theme.colors.text }]}>{item.brand}</Text>
+                <Text style={[styles.productName, { color: theme.colors.textSecondary }]} numberOfLines={2}>
                   {item.name}
                 </Text>
 
                 <View style={styles.priceRow}>
-                  <Text style={styles.productPrice}>{item.price}</Text>
-                  <Text style={styles.buyNowText}>Buy</Text>
+                  <Text style={[styles.productPrice, { color: theme.colors.text }]} numberOfLines={1}>
+                    {formatPriceDetail(item.price, item.discount).formattedText}
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -301,111 +565,137 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-
   logo: {
     fontSize: 28,
     fontWeight: '800',
     color: '#ff3f6c',
   },
-
-  searchButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff',
+  notificationButton: {
+    position: 'relative',
+    padding: 8,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
+  badge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
   section: {
     marginTop: 20,
     paddingHorizontal: 16,
   },
-
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
-
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111',
   },
-
   viewAll: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-
   viewAllText: {
     color: '#ff3f6c',
     fontWeight: '600',
     marginRight: 4,
   },
-
+  clearText: {
+    color: '#888',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   categoriesScroll: {
     marginTop: 4,
   },
-
   categoryCard: {
     width: 120,
     marginRight: 14,
-    backgroundColor: '#fff',
     borderRadius: 12,
     padding: 10,
     elevation: 2,
   },
-
   categoryImage: {
     width: '100%',
     height: 100,
     borderRadius: 10,
   },
-
   categoryName: {
     marginTop: 8,
     fontWeight: '700',
     fontSize: 15,
-    color: '#111',
     textAlign: 'center',
   },
-
+  brandCard: {
+    width: 90,
+    marginRight: 16,
+    alignItems: 'center',
+  },
+  brandImageContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    overflow: 'hidden',
+    borderWidth: 1,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  brandImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  brandName: {
+    marginTop: 8,
+    fontWeight: '600',
+    fontSize: 13,
+    textAlign: 'center',
+  },
   placeholderSection: {
     padding: 20,
     borderRadius: 12,
-    backgroundColor: '#f5f5f5',
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   horizontalListContent: {
     paddingRight: 16,
     gap: 14,
   },
-
   dealCard: {
     width: 220,
     height: 280,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#fff',
     elevation: 3,
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 6 },
   },
-
   dealImage: {
     width: '100%',
     height: '100%',
     resizeMode: 'cover',
   },
-
-  // subtle glow behind title
   dealGlow: {
     position: 'absolute',
     top: -40,
@@ -415,7 +705,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,63,108,0.28)',
     transform: [{ rotate: '-12deg' }],
   },
-
   dealOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -423,31 +712,25 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
-
   dealTitle: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '800',
   },
-
   dealBadge: {
     marginTop: 8,
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,63,108,0.92)',
   },
-
   dealBadgeText: {
     color: '#fff',
     fontWeight: '800',
     fontSize: 12,
   },
-
   productCard: {
     width: 180,
-    backgroundColor: '#fff',
     borderRadius: 14,
     overflow: 'hidden',
     elevation: 2,
@@ -456,18 +739,15 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 5 },
   },
-
   productImageWrap: {
     width: '100%',
     position: 'relative',
   },
-
   productImage: {
     width: '100%',
     height: 220,
     resizeMode: 'cover',
   },
-
   productDiscountPill: {
     position: 'absolute',
     top: 10,
@@ -475,45 +755,67 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,63,108,0.95)',
   },
-
   productDiscountPillText: {
     color: '#fff',
     fontWeight: '900',
     fontSize: 12,
   },
-
+  recentProductCard: {
+    width: 140,
+    marginRight: 15,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  recentImageContainer: {
+    width: '100%',
+    height: 160,
+    position: 'relative',
+  },
+  recentImage: {
+    width: '100%',
+    height: '100%',
+  },
+  recentInfo: {
+    padding: 10,
+  },
+  recentBrand: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  recentName: {
+    fontSize: 13,
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  recentPrice: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
   productInfo: {
     padding: 10,
   },
-
   productBrand: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#111',
   },
-
   productName: {
     fontSize: 13,
-    color: '#555',
     marginTop: 4,
     lineHeight: 18,
   },
-
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
     justifyContent: 'space-between',
   },
-
   productPrice: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#111',
   },
-
   buyNowText: {
     fontSize: 12,
     fontWeight: '900',
@@ -523,7 +825,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: 'rgba(255,63,108,0.08)',
   },
-
   productWishlistBtn: {
     position: 'absolute',
     top: 10,
@@ -531,7 +832,6 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.85)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -539,7 +839,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-
   reactLogo: {
     height: 178,
     width: 290,
@@ -547,4 +846,4 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
   },
-})
+});

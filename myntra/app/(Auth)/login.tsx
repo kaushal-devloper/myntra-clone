@@ -1,26 +1,34 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
+import { useAppTheme } from '@/context/ThemeContext';
+import { ThemedInput } from '@/components/themed-input';
+import { ThemedButton } from '@/components/themed-button';
 
 export default function Loginscreen() {
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
+  const { theme } = useAppTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const route = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      route.replace('/(tabs)');
+    }
+  }, [isAuthenticated]);
 
   const handleLogin = async () => {
     setError('');
@@ -34,11 +42,7 @@ export default function Loginscreen() {
       route.replace('/(tabs)');
     } catch (err: any) {
       console.log('Login error:', err);
-      if (err.response && err.response.data && err.response.data.message) {
-        setError(err.response.data.message);
-      } else {
-        setError('Login failed. Please check your connection or credentials.');
-      }
+      setError(err.message || 'Login failed. Please check your connection or credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -46,7 +50,7 @@ export default function Loginscreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.root}
+      style={[styles.root, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.hero}>
@@ -60,51 +64,46 @@ export default function Loginscreen() {
         <View style={styles.heroOverlay} />
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>Welcome To Myntra</Text>
-        <Text style={styles.subtitle}>Login to continue</Text>
+      <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+        <Text style={[styles.title, { color: theme.colors.text }]}>Welcome To Myntra</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>Login to continue</Text>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text> : null}
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
+        <View style={styles.form}>
+          <ThemedInput
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          autoCapitalize="none"
-          secureTextEntry
-        />
+          <ThemedInput
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            autoCapitalize="none"
+            secureTextEntry
+          />
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleLogin}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Login</Text>
-          )}
-        </TouchableOpacity>
+          <ThemedButton
+            title="Login"
+            onPress={handleLogin}
+            loading={isLoading}
+            style={styles.button}
+          />
+        </View>
 
         <TouchableOpacity
           style={styles.signupLink}
           onPress={() => route.push('/signup')}
           disabled={isLoading}
         >
-          <Text style={styles.signupText}>Create an account</Text>
+          <Text style={[styles.signupText, { color: theme.colors.primary }]}>Create an account</Text>
         </TouchableOpacity>
 
-        <Text style={styles.hint}>
+        <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
           (Demo) Any email/password will login.
         </Text>
       </View>
@@ -112,11 +111,9 @@ export default function Loginscreen() {
   );
 }
 
-
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   hero: {
     height: 220,
@@ -139,63 +136,40 @@ const styles = StyleSheet.create({
     paddingTop: 30,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
-    backgroundColor: '#fff',
   },
   title: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#111',
   },
   subtitle: {
     marginTop: 6,
     fontSize: 14,
     fontWeight: '600',
-    color: '#666',
   },
   errorText: {
     marginTop: 10,
-    color: '#ff3f6c',
     fontWeight: '700',
     fontSize: 14,
     textAlign: 'center',
   },
-  input: {
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#eee',
-    backgroundColor: '#fff',
-    paddingHorizontal: 14,
+  form: {
     marginTop: 14,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111',
   },
   button: {
+    marginTop: 8,
     height: 50,
-    borderRadius: 14,
-    backgroundColor: '#ff3f6c',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 18,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '900',
   },
   hint: {
     marginTop: 14,
     textAlign: 'center',
-    color: '#999',
     fontWeight: '600',
     fontSize: 12,
   },
   signupLink: {
-    marginTop: 10,
+    marginTop: 18,
     alignItems: 'center',
   },
   signupText: {
-    color: '#ff3f6c',
+    fontWeight: '700',
   },
 });

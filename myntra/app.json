@@ -4,7 +4,7 @@
     "slug": "myntra",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/myntra.png",
+    "icon": "./assets/images/icon.png",
     "scheme": "myntra",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -12,15 +12,26 @@
       "supportsTablet": true
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#ff3f6c",
-        "foregroundImage": "./assets/images/myntra.png",
-        "backgroundImage": "./assets/images/myntra.png",
-        "monochromeImage": "./assets/images/myntra.png"
-      },
+      "package": "com.kaushalt.myntra",
+      "googleServicesFile": "./google-services.json",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.myntra"
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ff3f6c"
+      },
+      "permissions": [
+        "INTERNET",
+        "NOTIFICATIONS",
+        "POST_NOTIFICATIONS"
+      ],
+      "usesCleartextTraffic": true
+    },
+    "notification": {
+      "icon": "./assets/images/notification-icon.png",
+      "color": "#ff3f6c",
+      "androidMode": "default",
+      "androidCollapsedTitle": "Myntra"
     },
     "web": {
       "output": "static",
@@ -29,22 +40,45 @@
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
+        "expo-notifications",
         {
-          "image": "./assets/images/myntra.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#ff3f6c",
+          "sounds": [
+            "./assets/sounds/notification.wav"
+          ]
         }
       ],
-      "expo-secure-store"
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ],
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "packagingOptions": {
+              "pickFirsts": ["**/libc++_shared.so"]
+            }
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a4417b95-2f86-4a04-ab70-a470b0e2ffc1"
+      }
     }
   }
 }
