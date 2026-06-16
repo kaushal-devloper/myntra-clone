@@ -92,4 +92,8 @@ async function startServer() {
   process.exit(1);
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+module.exports = app;
