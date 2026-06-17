@@ -52,8 +52,6 @@ export default function AppInfo() {
   const handleToggleNotifications = async (value: boolean) => {
     if (toggling) return;
     setToggling(true);
-    // Optimistic UI update for immediate visual response
-    setNotificationsEnabled(value);
 
     try {
       if (value) {
@@ -67,6 +65,7 @@ export default function AppInfo() {
           } else {
             await SecureStore.setItemAsync("notification_choice", "allowed");
           }
+          setNotificationsEnabled(true);
 
           if (isAuthenticated && user?._id) {
             await syncPushToken(user._id);
@@ -83,7 +82,7 @@ export default function AppInfo() {
             message: "Please enable notification permissions for Myntra in your phone's system settings to receive push notifications.",
             type: "warning"
           });
-          setNotificationsEnabled(false); // Revert optimistic update
+          setNotificationsEnabled(false);
         }
       } else {
         // User turned notifications OFF
@@ -93,6 +92,7 @@ export default function AppInfo() {
         } else {
           await SecureStore.setItemAsync("notification_choice", "disabled");
         }
+        setNotificationsEnabled(false);
 
         if (isAuthenticated && user?._id) {
           await unregisterPushToken(user._id);
@@ -105,7 +105,6 @@ export default function AppInfo() {
       }
     } catch (error) {
       console.error("[AppInfo] Error toggling notifications setting:", error);
-      setNotificationsEnabled(!value); // Revert optimistic update
       showAlert({
         title: "Error",
         message: "Failed to update notification settings. Please try again.",
@@ -154,6 +153,7 @@ export default function AppInfo() {
               <Switch
                 value={notificationsEnabled}
                 onValueChange={handleToggleNotifications}
+                disabled={toggling}
                 trackColor={{ false: theme.colors.border, true: theme.colors.subduedBrand }}
                 thumbColor={notificationsEnabled ? theme.colors.primary : "#f4f3f4"}
                 ios_backgroundColor={theme.colors.border}

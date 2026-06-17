@@ -10,14 +10,7 @@ import {
     View,
     Modal,
     ActivityIndicator,
-    LayoutAnimation,
-    Platform,
-    UIManager,
 } from 'react-native';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 import { useAuth } from '@/context/AuthContext';
 import axios from 'axios';
 import { getApiBaseUrl } from '@/utils/apiBaseUrl';
@@ -124,20 +117,6 @@ export default function Bag() {
 
   const handleSaveForLater = async (item: BagItem) => {
     if (!user) return;
-    const oldItems = [...items];
-    const oldSaved = [...savedItems];
-
-    // Optimistic Update
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setItems(prev => prev.filter(x => !(x.id === item.id && x.size === item.size)));
-    setSavedItems(prev => {
-      const existing = prev.find(x => x.id === item.id && x.size === item.size);
-      if (existing) {
-        return prev.map(x => x.id === item.id && x.size === item.size ? { ...x, quantity: (x.quantity || 1) + (item.quantity || 1) } : x);
-      }
-      return [...prev, item];
-    });
-
     try {
       const apiBaseUrl = getApiBaseUrl();
       const userId = (user as any)._id || (user as any).id;
@@ -146,36 +125,21 @@ export default function Bag() {
         productId: item.id,
         size: item.size
       });
+      setItems(prev => prev.filter(x => x.id !== item.id || x.size !== item.size));
+      setSavedItems(prev => {
+        const existing = prev.find(x => x.id === item.id && x.size === item.size);
+        if (existing) {
+          return prev.map(x => x.id === item.id && x.size === item.size ? { ...x, quantity: (x.quantity || 1) + (item.quantity || 1) } : x);
+        }
+        return [...prev, item];
+      });
     } catch (error) {
       console.error("Error saving for later:", error);
-      // Rollback
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setItems(oldItems);
-      setSavedItems(oldSaved);
-      showAlert({
-        title: "Error",
-        message: "Failed to save item for later. Please check your connection.",
-        type: "error"
-      });
     }
   };
 
   const handleMoveToBag = async (item: BagItem) => {
     if (!user) return;
-    const oldItems = [...items];
-    const oldSaved = [...savedItems];
-
-    // Optimistic Update
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setSavedItems(prev => prev.filter(x => !(x.id === item.id && x.size === item.size)));
-    setItems(prev => {
-      const existing = prev.find(x => x.id === item.id && x.size === item.size);
-      if (existing) {
-        return prev.map(x => x.id === item.id && x.size === item.size ? { ...x, quantity: (x.quantity || 1) + (item.quantity || 1) } : x);
-      }
-      return [...prev, item];
-    });
-
     try {
       const apiBaseUrl = getApiBaseUrl();
       const userId = (user as any)._id || (user as any).id;
@@ -184,28 +148,21 @@ export default function Bag() {
         productId: item.id,
         size: item.size
       });
+      setSavedItems(prev => prev.filter(x => x.id !== item.id || x.size !== item.size));
+      setItems(prev => {
+        const existing = prev.find(x => x.id === item.id && x.size === item.size);
+        if (existing) {
+          return prev.map(x => x.id === item.id && x.size === item.size ? { ...x, quantity: (x.quantity || 1) + (item.quantity || 1) } : x);
+        }
+        return [...prev, item];
+      });
     } catch (error) {
       console.error("Error moving to bag:", error);
-      // Rollback
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setItems(oldItems);
-      setSavedItems(oldSaved);
-      showAlert({
-        title: "Error",
-        message: "Failed to move item to bag. Please try again.",
-        type: "error"
-      });
     }
   };
 
   const handleRemoveSaved = async (item: BagItem) => {
     if (!user) return;
-    const oldSaved = [...savedItems];
-
-    // Optimistic Update
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setSavedItems(prev => prev.filter(x => !(x.id === item.id && x.size === item.size)));
-
     try {
       const apiBaseUrl = getApiBaseUrl();
       const userId = (user as any)._id || (user as any).id;
@@ -214,27 +171,14 @@ export default function Bag() {
         productId: item.id,
         size: item.size
       });
+      setSavedItems(prev => prev.filter(x => x.id !== item.id || x.size !== item.size));
     } catch (error) {
       console.error("Error removing saved item:", error);
-      // Rollback
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setSavedItems(oldSaved);
-      showAlert({
-        title: "Error",
-        message: "Failed to remove saved item. Please try again.",
-        type: "error"
-      });
     }
   };
 
   const handleRemoveActive = async (item: BagItem) => {
     if (!user) return;
-    const oldItems = [...items];
-
-    // Optimistic Update
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setItems(prev => prev.filter(x => !(x.id === item.id && x.size === item.size)));
-
     try {
       const apiBaseUrl = getApiBaseUrl();
       const userId = (user as any)._id || (user as any).id;
@@ -243,16 +187,9 @@ export default function Bag() {
         productId: item.id,
         size: item.size
       });
+      setItems(prev => prev.filter(x => x.id !== item.id || x.size !== item.size));
     } catch (error) {
       console.error("Error removing item:", error);
-      // Rollback
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setItems(oldItems);
-      showAlert({
-        title: "Error",
-        message: "Failed to remove item from bag. Please try again.",
-        type: "error"
-      });
     }
   };
 
