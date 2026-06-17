@@ -7,7 +7,10 @@ async function connectToDatabase() {
   if (cachedDb && mongoose.connection.readyState === 1) {
     return cachedDb;
   }
-  const dbURI = process.env.MONGO_URI || "mongodb+srv://Myntra:Kaushal12345@cluster0.h8ak5ij.mongodb.net/myntra?retryWrites=true&w=majority";
+  let dbURI = process.env.MONGO_URI;
+  if (!dbURI || dbURI.includes("Kaushal2412") || dbURI.includes("Pass%40123") || dbURI.includes("x0ebtdb.mongodb.net")) {
+    dbURI = "mongodb+srv://Myntra:Kaushal12345@cluster0.h8ak5ij.mongodb.net/myntra?retryWrites=true&w=majority";
+  }
   cachedDb = await mongoose.connect(dbURI);
   return cachedDb;
 }
