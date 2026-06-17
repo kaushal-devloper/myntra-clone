@@ -7,7 +7,7 @@ async function connectToDatabase() {
   if (cachedDb && mongoose.connection.readyState === 1) {
     return cachedDb;
   }
-  const dbURI = process.env.MONGO_URI || "mongodb+srv://myntra:Pass%40123@myntra.x0ebtdb.mongodb.net/myntra?retryWrites=true&w=majority";
+  const dbURI = process.env.MONGO_URI || "mongodb+srv://Myntra:Kaushal12345@cluster0.h8ak5ij.mongodb.net/myntra?retryWrites=true&w=majority";
   cachedDb = await mongoose.connect(dbURI);
   return cachedDb;
 }
