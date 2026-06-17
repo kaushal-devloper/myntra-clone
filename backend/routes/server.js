@@ -42,7 +42,7 @@ app.get("/", async (req, res) => {
       products: cat.productId ? cat.productId.map(p => p ? { name: p.name, discount: p.discount, price: p.price } : null) : []
     }));
     const totalProducts = await Product.countDocuments();
-    res.json({ debugData, totalProducts, mongoUri: process.env.MONGO_URI });
+    res.json({ debugData, totalProducts });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
