@@ -2,15 +2,52 @@ const PushToken = require("../modals/PushToken");
 const NotificationLog = require("../modals/NotificationLog");
 const mongoose = require("mongoose");
 const logger = require("../utils/logger");
+const webpush = require("web-push");
+
+// Initialize web-push VAPID details
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BPQZdZVU5SZqXd7AWkzE2Pc4OAucZZT6hQrboG9uLQoTTkq5Vf3LhM4b0_yd8gvSzgXVuHWP4qqLm4X9HTX7Wxs";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "9R5LgLxUljOOq74Z9ZcOEcgQVyk3TmjqY9l9H2_Pe2M";
+
+try {
+  webpush.setVapidDetails(
+    "mailto:support@myntraclone.com",
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+} catch (e) {
+  logger.error("[NotificationService] Error setting VAPID details:", e.message);
+}
+
+async function sendWebPushNotification(subscriptionString, title, body, data = {}, logId) {
+  try {
+    const subscriptionJson = JSON.parse(subscriptionString.substring("WebPushSubscription:".length));
+    const payload = JSON.stringify({
+      title,
+      body,
+      data: {
+        ...data,
+        logId
+      }
+    });
+
+    const res = await webpush.sendNotification(subscriptionJson, payload);
+    logger.info(`[NotificationService] Web Push sent successfully. Status: ${res.statusCode}`);
+    return { success: true, id: res.headers?.location || `webpush-${Date.now()}` };
+  } catch (error) {
+    logger.error("[NotificationService] Web Push failed:", error.message);
+    const isUnregistered = error.statusCode === 410 || error.statusCode === 404;
+    return { success: false, error: error.message, isUnregistered };
+  }
+}
 
 /**
- * Validate Expo Push Token format
+ * Validate Push Token format (supports Expo and Web Push)
  */
 function isValidPushToken(token) {
   if (typeof token !== "string") return false;
   const expoRegex = /^(ExponentPushToken|ExpoPushToken)\[.+\]$/;
   const mockRegex = /^ExponentPushToken\[Mock-.+\]$/;
-  return expoRegex.test(token) || mockRegex.test(token);
+  return expoRegex.test(token) || mockRegex.test(token) || token.startsWith("WebPushSubscription:");
 }
 
 /**
@@ -80,7 +117,7 @@ async function sendPushNotification(userId, title, body, data = {}, type = "prom
     status: "pending",
   });
 
-  // If the notification is not important, we save it as in-app only and skip Expo API send
+  // If the notification is not important, we save it as in-app only and skip Expo/Web Push send
   if (!isImportantNotification(type, title, body, data)) {
     logger.info(`[NotificationService] Less important notification to user ${userId}. Saving in-app log only.`);
     log.status = "delivered";
@@ -125,77 +162,105 @@ async function sendPushNotification(userId, title, body, data = {}, type = "prom
       return log;
     }
 
-    const tokens = validTokens;
-    log.tokens = tokens;
-    log.tokensCount = tokens.length;
+    log.tokens = validTokens;
+    log.tokensCount = validTokens.length;
+
+    // Separate Expo and Web Push tokens
+    const expoTokens = [];
+    const webPushTokens = [];
+
+    validTokens.forEach(token => {
+      if (token.startsWith("WebPushSubscription:")) {
+        webPushTokens.push(token);
+      } else {
+        expoTokens.push(token);
+      }
+    });
+
+    const ticketIds = [];
+    const errors = [];
 
     // 4. Calculate badge count based on unread notification logs
     const unreadCount = await NotificationLog.countDocuments({ userId, read: false });
-    const badge = unreadCount + 1; // Syncing current count + this new one
+    const badge = unreadCount + 1;
 
-    // 5. Prepare the messages with appropriate Android channels & tracking info
-    const messages = tokens.map(token => {
-      let channelId = "default";
-      if (type === "order_update" || type === "payment_status" || type === "delivery_alert") {
-        channelId = "orders";
-      } else if (type === "cart_reminder") {
-        channelId = "reminders";
-      }
-      return {
-        to: token,
-        sound: "default",
-        channelId,
-        title,
-        body,
-        badge,
-        data: {
-          ...data,
-          notificationType: type,
-          logId: log._id.toString(), // Map logId to payload for analytics tracking
-        },
-      };
-    });
-
-    // 6. Send using Expo Push API
-    logger.info(`[NotificationService] Sending ${messages.length} message(s) to Expo API...`);
-    const response = await fetch("https://exp.host/--/api/v2/push/send", {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Accept-encoding": "gzip, deflate",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(messages),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Expo API returned status ${response.status}: ${errorText}`);
+    // 5. Send Web Push Notifications concurrently
+    if (webPushTokens.length > 0) {
+      logger.info(`[NotificationService] Sending ${webPushTokens.length} Web Push notification(s)...`);
+      const webPromises = webPushTokens.map(async (token) => {
+        const res = await sendWebPushNotification(token, title, body, data, log._id.toString());
+        if (res.success) {
+          ticketIds.push(res.id);
+        } else {
+          errors.push(`WebPush: ${res.error}`);
+          if (res.isUnregistered) {
+            logger.info(`[NotificationService] Web subscription is unregistered. Removing from database...`);
+            await PushToken.deleteOne({ token });
+          }
+        }
+      });
+      await Promise.all(webPromises);
     }
 
-    const result = await response.json();
-    logger.info(`[NotificationService] Expo API response status: ${response.status}`);
+    // 6. Send using Expo Push API
+    if (expoTokens.length > 0) {
+      logger.info(`[NotificationService] Sending ${expoTokens.length} message(s) to Expo API...`);
+      const messages = expoTokens.map(token => {
+        let channelId = "default";
+        if (type === "order_update" || type === "payment_status" || type === "delivery_alert") {
+          channelId = "orders";
+        } else if (type === "cart_reminder") {
+          channelId = "reminders";
+        }
+        return {
+          to: token,
+          sound: "default",
+          channelId,
+          title,
+          body,
+          badge,
+          data: {
+            ...data,
+            notificationType: type,
+            logId: log._id.toString(),
+          },
+        };
+      });
 
-    // 7. Process tickets and handle token cleanup
-    const ticketIds = [];
-    const errors = [];
-    
-    if (result.data && Array.isArray(result.data)) {
-      for (let i = 0; i < result.data.length; i++) {
-        const ticket = result.data[i];
-        const associatedToken = tokens[i];
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-encoding": "gzip, deflate",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(messages),
+      });
 
-        if (ticket.status === "ok") {
-          ticketIds.push(ticket.id);
-        } else {
-          const errorMsg = ticket.message || (ticket.details && ticket.details.error) || "Unknown error";
-          errors.push(`Token: ${associatedToken} failed: ${errorMsg}`);
-          logger.error(`[NotificationService] Error sending to token ${associatedToken}: ${errorMsg}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Expo API returned status ${response.status}: ${errorText}`);
+      }
 
-          // Automatic cleanup of inactive / unregistered device tokens
-          if (ticket.details && (ticket.details.error === "DeviceNotRegistered" || ticket.message?.includes("not a registered push notification recipient"))) {
-            logger.info(`[NotificationService] Token ${associatedToken} is unregistered. Removing from database...`);
-            await PushToken.deleteOne({ token: associatedToken });
+      const result = await response.json();
+      logger.info(`[NotificationService] Expo API response status: ${response.status}`);
+
+      if (result.data && Array.isArray(result.data)) {
+        for (let i = 0; i < result.data.length; i++) {
+          const ticket = result.data[i];
+          const associatedToken = expoTokens[i];
+
+          if (ticket.status === "ok") {
+            ticketIds.push(ticket.id);
+          } else {
+            const errorMsg = ticket.message || (ticket.details && ticket.details.error) || "Unknown error";
+            errors.push(`Token: ${associatedToken} failed: ${errorMsg}`);
+            logger.error(`[NotificationService] Error sending to token ${associatedToken}: ${errorMsg}`);
+
+            if (ticket.details && (ticket.details.error === "DeviceNotRegistered" || ticket.message?.includes("not a registered push notification recipient"))) {
+              logger.info(`[NotificationService] Token ${associatedToken} is unregistered. Removing from database...`);
+              await PushToken.deleteOne({ token: associatedToken });
+            }
           }
         }
       }
@@ -280,9 +345,10 @@ async function sendBatchPushNotifications(userIds, title, body, data = {}, type 
       userUnreadCounts[item._id.toString()] = item.count;
     }
 
-    // 2. Prepare Expo messages
-    const messages = [];
-    const messageMeta = [];
+    // 2. Prepare Expo messages and Web Push promises
+    const expoMessages = [];
+    const expoMeta = [];
+    const webPushPromises = [];
 
     for (const userId of uniqueUserIds) {
       const tokens = userTokensMap[userId] || [];
@@ -316,33 +382,63 @@ async function sendBatchPushNotifications(userIds, title, body, data = {}, type 
       }
 
       for (const token of tokens) {
-        messages.push({
-          to: token,
-          sound: "default",
-          channelId,
-          title,
-          body,
-          badge,
-          data: {
-            ...data,
-            notificationType: type,
-            logId: log._id.toString(),
-          },
-        });
-        messageMeta.push({ userId, token, log });
+        if (token.startsWith("WebPushSubscription:")) {
+          webPushPromises.push((async () => {
+            const res = await sendWebPushNotification(token, title, body, data, log._id.toString());
+            if (res.success) {
+              if (!log.ticketIds.includes(res.id)) {
+                log.ticketIds.push(res.id);
+              }
+              log.status = "sent";
+            } else {
+              log.errorLogs.push(`WebPush: ${res.error}`);
+              if (res.isUnregistered) {
+                await PushToken.deleteOne({ token });
+              }
+            }
+          })());
+        } else {
+          expoMessages.push({
+            to: token,
+            sound: "default",
+            channelId,
+            title,
+            body,
+            badge,
+            data: {
+              ...data,
+              notificationType: type,
+              logId: log._id.toString(),
+            },
+          });
+          expoMeta.push({ userId, token, log });
+        }
       }
     }
 
-    if (messages.length === 0) {
-      logger.info("[NotificationService] No messages to deliver in this batch.");
+    // Execute Web Push notifications concurrently
+    if (webPushPromises.length > 0) {
+      await Promise.all(webPushPromises);
+    }
+
+    if (expoMessages.length === 0) {
+      // Save final status for all logs with web-only notifications
+      for (const userId of uniqueUserIds) {
+        const log = logsMap[userId];
+        if (log.status === "pending") {
+          log.status = log.ticketIds.length > 0 ? "sent" : "failed";
+        }
+        await log.save();
+        results.push(log);
+      }
       return results;
     }
 
     // 3. Send to Expo in chunks of 100 messages to maximize throughput
     const CHUNK_SIZE = 100;
-    for (let i = 0; i < messages.length; i += CHUNK_SIZE) {
-      const chunk = messages.slice(i, i + CHUNK_SIZE);
-      const metaChunk = messageMeta.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < expoMessages.length; i += CHUNK_SIZE) {
+      const chunk = expoMessages.slice(i, i + CHUNK_SIZE);
+      const metaChunk = expoMeta.slice(i, i + CHUNK_SIZE);
 
       logger.info(`[NotificationService] Sending batch chunk of ${chunk.length} messages to Expo API...`);
 
@@ -392,7 +488,7 @@ async function sendBatchPushNotifications(userIds, title, body, data = {}, type 
     for (const userId of uniqueUserIds) {
       const log = logsMap[userId];
       if (log.status === "pending") {
-        log.status = "failed";
+        log.status = log.ticketIds.length > 0 ? "sent" : "failed";
       }
       await log.save();
       results.push(log);

@@ -9,7 +9,8 @@ export const getApiBaseUrl = () => {
     if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
       return `http://${window.location.hostname}:5000`;
     }
-    return envUrl || "https://myntra-backend-0pxb.onrender.com";
+    // Use relative paths in production to route requests to the same origin (Vercel serverless backend)
+    return "";
   }
 
   // Use the public API URL if it's set and not localhost (for mobile tunnels)

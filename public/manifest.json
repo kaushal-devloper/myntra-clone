@@ -1,0 +1,26 @@
+{
+  "name": "Myntra Clone",
+  "short_name": "Myntra",
+  "description": "A full-stack Myntra clone with shopping, orders, and notifications.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ff3f6c",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/assets/icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "lifestyle"],
+  "gcm_sender_id": "103953800507"
+}

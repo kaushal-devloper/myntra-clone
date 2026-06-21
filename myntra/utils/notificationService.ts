@@ -92,13 +92,55 @@ async function saveRegisteredToken(userId: string, token: string): Promise<void>
   }
 }
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 /**
  * Checks, requests permissions, and triggers a welcome local notification if granted for the first time.
  */
 export async function requestPermissionsAndInit(): Promise<string> {
   if (Platform.OS === "web") {
-    console.log("Push notifications are not supported on web.");
-    return "undetermined";
+    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
+      console.warn("Notifications or Service Workers not supported in this browser.");
+      return "denied";
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        const registration = await navigator.serviceWorker.register("/service-worker.js", {
+          scope: "/"
+        });
+        console.log("Service Worker registered successfully:", registration);
+
+        const welcomeSent = localStorage.getItem("welcome_notification_sent");
+        if (!welcomeSent) {
+          registration.showNotification("Myntra Notifications Active! 🔔", {
+            body: "Great! You will now receive updates on latest fashion trends, sales, and order statuses.",
+            icon: "/assets/icon.png",
+            badge: "/assets/icon.png",
+            vibrate: [100, 50, 100],
+          });
+          localStorage.setItem("welcome_notification_sent", "true");
+        }
+      }
+      return permission;
+    } catch (e) {
+      console.error("Error requesting browser notification permission:", e);
+      return "denied";
+    }
   }
 
   // 1. Setup channels for Android devices with custom sounds, lights, and vibration patterns
@@ -181,8 +223,32 @@ export async function requestPermissionsAndInit(): Promise<string> {
  */
 export async function registerForPushNotificationsAsync(userId?: string): Promise<string | null> {
   if (Platform.OS === "web") {
-    console.log("Push notifications are not supported on web.");
-    return null;
+    if (typeof window === "undefined" || !("Notification" in window) || !("serviceWorker" in navigator)) {
+      return null;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      return null;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        const VAPID_PUBLIC_KEY = "BPQZdZVU5SZqXd7AWkzE2Pc4OAucZZT6hQrboG9uLQoTTkq5Vf3LhM4b0_yd8gvSzgXVuHWP4qqLm4X9HTX7Wxs";
+        const convertedVapidKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedVapidKey
+        });
+      }
+
+      return `WebPushSubscription:${JSON.stringify(subscription)}`;
+    } catch (error) {
+      console.error("Failed to subscribe user to Web Push:", error);
+      return null;
+    }
   }
 
   // Call the permissions request and welcome init logic

@@ -15,13 +15,20 @@ const settingsRoutes = require("./settingsRoutes");
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
+// Ensure correct MongoDB Atlas connection string is used if missing or incorrect
+const CORRECT_ATLAS_URI = "mongodb+srv://Myntra:Kaushal12345@cluster0.h8ak5ij.mongodb.net/myntra?retryWrites=true&w=majority";
+const currentUri = process.env.MONGO_URI || "";
+if (!currentUri || currentUri.includes("Kaushal2412") || currentUri.includes("Pass%40123") || currentUri.includes("x0ebtdb.mongodb.net")) {
+  process.env.MONGO_URI = CORRECT_ATLAS_URI;
+}
+
 const app = express();
 
 app.use(express.json());
 
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, bypass-tunnel-reminder, Origin, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version");
 
   if (req.method === "OPTIONS") {
@@ -65,12 +72,13 @@ const fallbackDbURI = "mongodb://127.0.0.1:27017/myntra";
 const { initScheduler } = require("../services/schedulingService");
 
 async function startServer() {
-  const urisToTry = [primaryDbURI, fallbackDbURI].filter(Boolean);
+  const urisToTry = [...new Set([primaryDbURI, CORRECT_ATLAS_URI].filter(Boolean))];
 
   for (const dbURI of urisToTry) {
     try {
       await mongoose.connect(dbURI);
-      console.log(`MongoDB connected (${dbURI === fallbackDbURI ? "local" : "atlas"})`);
+      const connectionType = dbURI === CORRECT_ATLAS_URI ? "atlas" : (dbURI === fallbackDbURI ? "local" : "primary");
+      console.log(`MongoDB connected (${connectionType})`);
 
       // Start scheduled background tasks (Cart reminders, daily offers)
       initScheduler();
@@ -84,7 +92,8 @@ async function startServer() {
       });
       return;
     } catch (error) {
-      console.error(`Error connecting to MongoDB (${dbURI === fallbackDbURI ? "local" : "atlas"}):`, error.message);
+      const connectionType = dbURI === CORRECT_ATLAS_URI ? "atlas" : (dbURI === fallbackDbURI ? "local" : "primary");
+      console.error(`Error connecting to MongoDB (${connectionType}):`, error.message);
     }
   }
 

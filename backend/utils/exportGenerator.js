@@ -33,7 +33,8 @@ function generateCSV(transactions, summary, filePath) {
     "Payment Status",
     "Payment Mode",
     "Date & Time",
-    "Description"
+    "Description",
+    "Receipt Link"
   ];
   csvContent += headers.map(escapeCSV).join(",") + "\n";
 
@@ -52,7 +53,8 @@ function generateCSV(transactions, summary, filePath) {
       t.paymentStatus,
       t.paymentMode,
       new Date(t.createdAt).toLocaleString(),
-      t.description || ""
+      t.description || "",
+      t.receiptUrl || "N/A"
     ];
     csvContent += row.map(escapeCSV).join(",") + "\n";
   });
@@ -85,7 +87,8 @@ function generateExcel(transactions, summary, filePath) {
     "Payment Status",
     "Payment Mode",
     "Date & Time",
-    "Description"
+    "Description",
+    "Receipt Link"
   ];
 
   const transactionRows = transactions.map((t) => {
@@ -103,7 +106,8 @@ function generateExcel(transactions, summary, filePath) {
       t.paymentStatus,
       t.paymentMode,
       new Date(t.createdAt).toLocaleString(),
-      t.description || ""
+      t.description || "",
+      t.receiptUrl || "N/A"
     ];
   });
 
@@ -286,7 +290,10 @@ function generatePDF(transactions, summary, filePath) {
         doc.fillColor(darkColor).text(dateStr, 45, currentY + 6, { width: 65 });
         doc.font("Helvetica-Bold").text(txnId, 115, currentY + 6, { width: 100 });
         if (orderIdStr) {
-          doc.fillColor(greyColor).font("Helvetica").fontSize(7).text(orderIdStr, 115, currentY + 16, { width: 100 });
+          doc.fillColor(greyColor).font("Helvetica").fontSize(7).text(orderIdStr, 115, currentY + 15, { width: 100 });
+        }
+        if (t.receiptUrl) {
+          doc.fillColor(primaryColor).font("Helvetica-Bold").fontSize(7).text("View Receipt", 115, currentY + (orderIdStr ? 24 : 15), { width: 100, link: t.receiptUrl });
         }
 
         doc.fillColor(darkColor).font("Helvetica").fontSize(7.5).text(products, 220, currentY + 8, { width: 150 });

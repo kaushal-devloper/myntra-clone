@@ -42,8 +42,8 @@ import { Transaction, generateTransactionExport } from "@/utils/transactionApi";
 import { getApiBaseUrl } from "@/utils/apiBaseUrl";
 import { useTransactions, PAGE_LIMIT } from "@/hooks/useTransactions";
 import { getUserData } from "@/utils/storage";
-import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
+// Note: FileSystem is conditionally used below only on native platforms
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -591,24 +591,45 @@ export default function TransactionHistoryScreen() {
       const { token } = await getUserData();
       const downloadUri = `${apiBaseUrl}${res.downloadUrl}${res.downloadUrl.includes("?") ? "&" : "?"}token=${token}`;
 
-      const fileUri = `${FileSystem.documentDirectory}${res.filename}`;
-
-      // Download file locally
-      const downloadResult = await FileSystem.downloadAsync(downloadUri, fileUri, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "bypass-tunnel-reminder": "true",
-        },
-      });
-
-      if (downloadResult.status !== 200) {
-        throw new Error(`File download failed (Status ${downloadResult.status})`);
-      }
-
-      // Share / Open the downloaded file using Sharing API
       if (Platform.OS === "web") {
-        Linking.openURL(downloadUri);
+        // ── Web: Fetch as Blob and trigger browser download ──
+        const response = await fetch(downloadUri, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "bypass-tunnel-reminder": "true",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Download failed (HTTP ${response.status})`);
+        }
+
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = objectUrl;
+        anchor.download = res.filename;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        // Revoke object URL after a short delay to free memory
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 5000);
       } else {
+        // ── Native: Use expo-file-system + expo-sharing ──
+        const FileSystem = await import("expo-file-system/legacy");
+        const fileUri = `${FileSystem.documentDirectory}${res.filename}`;
+
+        const downloadResult = await FileSystem.downloadAsync(downloadUri, fileUri, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "bypass-tunnel-reminder": "true",
+          },
+        });
+
+        if (downloadResult.status !== 200) {
+          throw new Error(`File download failed (Status ${downloadResult.status})`);
+        }
+
         const isAvailable = await Sharing.isAvailableAsync();
         if (isAvailable) {
           await Sharing.shareAsync(downloadResult.uri, {

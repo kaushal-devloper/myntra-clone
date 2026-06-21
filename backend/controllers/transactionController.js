@@ -314,8 +314,9 @@ exports.exportTransactions = async (req, res) => {
       failed
     };
 
-    // Ensure exports directory exists
-    const exportsDir = path.join(__dirname, "../exports");
+    // Ensure exports directory exists in temp storage
+    const os = require("os");
+    const exportsDir = path.join(os.tmpdir(), "exports");
     if (!fs.existsSync(exportsDir)) {
       fs.mkdirSync(exportsDir, { recursive: true });
     }
@@ -350,7 +351,18 @@ exports.exportTransactions = async (req, res) => {
     }
 
     // Secure URL that verifies auth before downloading
-    const downloadUrl = `/api/transactions/export/download/${filename}`;
+    // We add the query parameters to the downloadUrl so that if the file is missing from /tmp (e.g. on serverless Vercel),
+    // the download endpoint can generate it on-the-fly.
+    const queryParams = new URLSearchParams();
+    queryParams.set("format", format);
+    if (status) queryParams.set("status", status);
+    if (mode) queryParams.set("mode", mode);
+    if (sort) queryParams.set("sort", sort);
+    if (search) queryParams.set("search", search);
+    if (startDate) queryParams.set("startDate", startDate);
+    if (endDate) queryParams.set("endDate", endDate);
+
+    const downloadUrl = `/api/transactions/export/download/${filename}?${queryParams.toString()}`;
 
     // Write audit log for security & tracking
     await createAuditLog({
@@ -392,14 +404,121 @@ exports.downloadExportFile = async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied. You do not own this file." });
     }
 
-    const filePath = path.join(__dirname, "../exports", filename);
+    const os = require("os");
+    const exportsDir = path.join(os.tmpdir(), "exports");
+    const filePath = path.join(exportsDir, filename);
+
+    // Parse format from filename
+    const ext = path.extname(filename);
+    const format = ext.replace(".", "").toLowerCase();
 
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ success: false, message: "Export file not found or expired." });
+      console.log(`File ${filename} not found in temp storage. Generating on-the-fly...`);
+      
+      // Build filter
+      const filter = { userId };
+      
+      // Status filter
+      const status = req.query.status;
+      if (status && status !== "all") {
+        const validStatuses = ["pending", "success", "failed", "refunded"];
+        if (validStatuses.includes(status)) {
+          filter.paymentStatus = status;
+        }
+      }
+
+      // Mode filter
+      const mode = req.query.mode;
+      if (mode && mode !== "all") {
+        const validModes = ["UPI", "Card", "COD", "Wallet", "NetBanking", "Other"];
+        if (validModes.includes(mode)) {
+          filter.paymentMode = mode;
+        }
+      }
+
+      // Date range filter
+      const startDate = req.query.startDate;
+      const endDate = req.query.endDate;
+      if (startDate || endDate) {
+        filter.createdAt = {};
+        if (startDate) {
+          const start = new Date(startDate);
+          if (!isNaN(start.getTime())) {
+            filter.createdAt.$gte = start;
+          }
+        }
+        if (endDate) {
+          const end = new Date(endDate);
+          if (!isNaN(end.getTime())) {
+            end.setHours(23, 59, 59, 999);
+            filter.createdAt.$lte = end;
+          }
+        }
+      }
+
+      // Search filter
+      const search = req.query.search;
+      if (search && search.trim()) {
+        filter.description = {
+          $regex: search.trim(),
+          $options: "i",
+        };
+      }
+
+      // Build sort option
+      const sort = req.query.sort || "date_desc";
+      const sortMap = {
+        date_desc: { createdAt: -1 },
+        date_asc: { createdAt: 1 },
+        amount_desc: { amount: -1 },
+        amount_asc: { amount: 1 },
+      };
+      const sortOption = sortMap[sort] || { createdAt: -1 };
+
+      const transactions = await Transaction.find(filter)
+        .sort(sortOption)
+        .limit(5000)
+        .populate("orderId")
+        .lean();
+
+      // Calculate summary
+      let totalTransactions = transactions.length;
+      let totalSpent = 0;
+      let successful = 0;
+      let failed = 0;
+
+      transactions.forEach(t => {
+        if (t.paymentStatus === "success") {
+          totalSpent += t.amount;
+          successful++;
+        } else {
+          failed++;
+        }
+      });
+
+      const summary = {
+        totalTransactions,
+        totalSpent,
+        successful,
+        failed
+      };
+
+      // Ensure exports folder exists
+      if (!fs.existsSync(exportsDir)) {
+        fs.mkdirSync(exportsDir, { recursive: true });
+      }
+
+      // Generate the file
+      if (format === "csv") {
+        generateCSV(transactions, summary, filePath);
+      } else if (format === "xlsx") {
+        generateExcel(transactions, summary, filePath);
+      } else {
+        await generatePDF(transactions, summary, filePath);
+      }
     }
 
     // Determine readable file display name
-    const ext = path.extname(filename);
     const downloadName = `Myntra_Transactions_${new Date().toISOString().split('T')[0]}${ext}`;
 
     // Write audit log for security & tracking

@@ -91,6 +91,7 @@ export default function NotificationHandler() {
   // Dynamic Token Refresh Handling
   useEffect(() => {
     if (!isAuthenticated || !user?._id) return;
+    if (Platform.OS === "web") return; // Web push doesn't refresh tokens this way
 
     console.log("[NotificationHandler] Registering push token refresh listener...");
     const subscription = Notifications.addPushTokenListener(async (token) => {
