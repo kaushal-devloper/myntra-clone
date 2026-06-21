@@ -38,17 +38,11 @@ module.exports = async (req, res) => {
     return res.status(500).json({ message: 'Database connection failed', error: error.message });
   }
 
-  // Restore original path from Vercel headers so Express routes match correctly
-  // Vercel rewrites /api/foo → /api/index.js but provides original path in x-matched-path or the URL
-  const originalUrl = req.headers['x-matched-path'] || req.headers['x-forwarded-url'] || req.url;
-
-  // x-matched-path gives the Vercel matched route pattern (e.g. /api/:path*)
-  // We need to use the actual original request URL instead
-  // The real original path is in req.url when Vercel passes it through
-  if (req.url && req.url !== '/api' && req.url !== '/') {
-    // req.url already has the correct full path from Vercel
-    // Do nothing - Express will handle it
-  }
+  // CRITICAL: Vercel rewrites ALL routes to /api/index.js but passes the original
+  // requested URL in req.url. We must ensure Express receives the full original path.
+  // req.url already contains the full original path (e.g. /api/transactions, /category/men)
+  // so we don't need to do any rewriting - just pass through to Express.
+  console.log(`[API] ${req.method} ${req.url}`);
 
   return app(req, res);
 };
