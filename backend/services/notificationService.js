@@ -4,9 +4,8 @@ const mongoose = require("mongoose");
 const logger = require("../utils/logger");
 const webpush = require("web-push");
 
-// Initialize web-push VAPID details
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BPQZdZVU5SZqXd7AWkzE2Pc4OAucZZT6hQrboG9uLQoTTkq5Vf3LhM4b0_yd8gvSzgXVuHWP4qqLm4X9HTX7Wxs";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "9R5LgLxUljOOq74Z9ZcOEcgQVyk3TmjqY9l9H2_Pe2M";
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BJ7AHMLHsW7qgkaa2kQiR2lwsMkg4bWFlejolgCSPjodKmpgy6MIp-4yyscB57F5Ha68c0WxTmMFw6NPtwXU-Yg";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "VFlBYyNadyq58-dSfQEN8BqC-5UiF_R5l_K4KZJtM14";
 
 try {
   webpush.setVapidDetails(

@@ -232,11 +232,11 @@ export async function registerForPushNotificationsAsync(userId?: string): Promis
     }
 
     try {
+      await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
       const registration = await navigator.serviceWorker.ready;
       let subscription = await registration.pushManager.getSubscription();
-
       if (!subscription) {
-        const VAPID_PUBLIC_KEY = "BPQZdZVU5SZqXd7AWkzE2Pc4OAucZZT6hQrboG9uLQoTTkq5Vf3LhM4b0_yd8gvSzgXVuHWP4qqLm4X9HTX7Wxs";
+        const VAPID_PUBLIC_KEY = "BJ7AHMLHsW7qgkaa2kQiR2lwsMkg4bWFlejolgCSPjodKmpgy6MIp-4yyscB57F5Ha68c0WxTmMFw6NPtwXU-Yg";
         const convertedVapidKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
