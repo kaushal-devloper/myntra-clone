@@ -72,7 +72,8 @@ const fallbackDbURI = "mongodb://127.0.0.1:27017/myntra";
 const { initScheduler } = require("../services/schedulingService");
 
 async function startServer() {
-  const urisToTry = [...new Set([primaryDbURI, CORRECT_ATLAS_URI].filter(Boolean))];
+  // Try local first (fast, no internet required), then Atlas as fallback
+  const urisToTry = [...new Set([fallbackDbURI, primaryDbURI, CORRECT_ATLAS_URI].filter(Boolean))];
 
   for (const dbURI of urisToTry) {
     try {

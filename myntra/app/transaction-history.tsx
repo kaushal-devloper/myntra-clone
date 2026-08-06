@@ -590,8 +590,6 @@ export default function TransactionHistoryScreen() {
       const { token } = await getUserData();
       const downloadUri = `${apiBaseUrl}${res.downloadUrl}${res.downloadUrl.includes("?") ? "&" : "?"}token=${token}`;
 
-      await downloadFile(downloadUri, res.filename, token, getMimeType(format));
-
       setShowExportModal(false);
     } catch (err: any) {
       setExportError(err.message || "Export failed.");

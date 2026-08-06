@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { Heart, Trash2 } from "lucide-react-native";
+import { Heart, Trash2, ShoppingBag, Sparkles } from "lucide-react-native";
 import React from "react";
 import {
   Image,
@@ -8,11 +8,14 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useAuth } from "@/context/AuthContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { useAppTheme } from "@/context/ThemeContext";
 import { formatPriceDetail, getProductDiscount } from "@/utils/priceFormatter";
+import axios from "axios";
+import { getApiBaseUrl } from "@/utils/apiBaseUrl";
 
 export default function Wishlist() {
   const router = useRouter();
@@ -20,26 +23,48 @@ export default function Wishlist() {
   const isAuthenticated = !!user;
   const { wishlist, removeFromWishlist } = useWishlist();
   const { theme, isDark } = useAppTheme();
+  const { width } = useWindowDimensions();
+
+  const isDesktop = width >= 768;
+  const cardWidth = isDesktop ? "31%" : "48%";
+
+  const handleMoveToBag = async (item: any) => {
+    if (!user) return;
+    try {
+      const apiBaseUrl = getApiBaseUrl();
+      const userId = (user as any)._id || (user as any).id;
+      await axios.post(`${apiBaseUrl}/api/bag/add`, {
+        userId,
+        productId: item.id,
+        size: "M",
+        quantity: 1,
+      });
+      removeFromWishlist(item.id);
+    } catch (e) {
+      console.error("Error moving to bag:", e);
+    }
+  };
 
   if (!isAuthenticated) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={[styles.header, { backgroundColor: theme.colors.card, borderBottomWidth: 1, borderBottomColor: theme.colors.border }]}>
+        <View style={[styles.header, { backgroundColor: theme.colors.card, borderBottomColor: theme.colors.border }]}>
           <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Wishlist</Text>
         </View>
-
         <View style={styles.emptyState}>
-          <Heart size={64} color={theme.colors.primary} />
-          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-            Please login to view your wishlist
+          <View style={[styles.emptyIconWrap, { backgroundColor: theme.colors.subduedBrand }]}>
+            <Heart size={52} color={theme.colors.primary} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Login to view your wishlist</Text>
+          <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+            Save items you love and shop them anytime
           </Text>
-
           <TouchableOpacity
-            style={[styles.loginButton, { backgroundColor: theme.colors.primary }]}
+            style={[styles.ctaButton, { backgroundColor: theme.colors.primary }]}
             onPress={() => router.push("/login")}
             activeOpacity={0.9}
           >
-            <Text style={styles.loginButtonText}>LOGIN</Text>
+            <Text style={styles.ctaButtonText}>LOGIN / SIGN UP</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -48,68 +73,106 @@ export default function Wishlist() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.colors.card, borderBottomWidth: 1, borderBottomColor: theme.colors.border }]}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Wishlist ({wishlist.length})</Text>
+      <View style={[styles.header, { backgroundColor: theme.colors.card, borderBottomColor: theme.colors.border }]}>
+        <View>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>My Wishlist</Text>
+          {wishlist.length > 0 && (
+            <Text style={[styles.headerSub, { color: theme.colors.textSecondary }]}>
+              {wishlist.length} item{wishlist.length > 1 ? "s" : ""} saved
+            </Text>
+          )}
+        </View>
+        {wishlist.length > 0 && (
+          <View style={[styles.countBadge, { backgroundColor: theme.colors.subduedBrand }]}>
+            <Heart size={14} color={theme.colors.primary} fill={theme.colors.primary} />
+            <Text style={[styles.countBadgeText, { color: theme.colors.primary }]}>{wishlist.length}</Text>
+          </View>
+        )}
       </View>
 
       {wishlist.length === 0 ? (
         <View style={styles.emptyState}>
-          <Heart size={64} color={theme.colors.border} />
-          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-            Your wishlist is empty
-          </Text>
+          <View style={[styles.emptyIconWrap, { backgroundColor: theme.colors.subduedBrand }]}>
+            <Heart size={52} color={theme.colors.primary} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>Your wishlist is empty</Text>
           <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-            Explore and add items that you love!
+            Explore collections and tap ♡ to save items you love
           </Text>
-
           <TouchableOpacity
-            style={[styles.loginButton, { backgroundColor: theme.colors.primary }]}
+            style={[styles.ctaButton, { backgroundColor: theme.colors.primary }]}
             onPress={() => router.push("/(tabs)")}
             activeOpacity={0.9}
           >
-            <Text style={styles.loginButtonText}>SHOP NOW</Text>
+            <Sparkles size={16} color="#fff" style={{ marginRight: 6 }} />
+            <Text style={styles.ctaButtonText}>EXPLORE NOW</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.listGrid}>
-            {wishlist.map((item) => (
-              <View key={item.id} style={[styles.wishlistItem, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-                {/* Tappable area: image + info → navigates to product detail */}
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={() => router.push(`/product/${item.id}` as any)}
-                  style={{ flex: 1 }}
+        <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+          <View style={[styles.listGrid, isDesktop && styles.listGridDesktop]}>
+            {wishlist.map((item) => {
+              const priceInfo = formatPriceDetail(item.price, item.discount || getProductDiscount(item));
+              return (
+                <View
+                  key={item.id}
+                  style={[
+                    styles.wishlistItem,
+                    { backgroundColor: theme.colors.card, borderColor: theme.colors.border, width: cardWidth as any },
+                  ]}
                 >
-                  <Image source={{ uri: item.image }} style={[styles.itemImage, { backgroundColor: theme.colors.inputBackground }]} />
+                  {/* Image + delete */}
+                  <TouchableOpacity
+                    activeOpacity={0.92}
+                    onPress={() => router.push(`/product/${item.id}` as any)}
+                    style={styles.imageWrap}
+                  >
+                    <Image
+                      source={{ uri: item.image }}
+                      style={[styles.itemImage, { backgroundColor: theme.colors.inputBackground }]}
+                      resizeMode="cover"
+                    />
+                    {item.discount && (
+                      <View style={styles.discountBadge}>
+                        <Text style={styles.discountBadgeText}>{item.discount}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
 
+                  {/* Remove button */}
+                  <TouchableOpacity
+                    style={[styles.removeBtn, { backgroundColor: isDark ? "rgba(30,30,30,0.9)" : "rgba(255,255,255,0.92)", borderColor: theme.colors.border }]}
+                    onPress={() => removeFromWishlist(item.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Trash2 size={16} color={theme.colors.primary} />
+                  </TouchableOpacity>
+
+                  {/* Info */}
                   <View style={styles.itemInfo}>
-                    <Text style={[styles.brandName, { color: theme.colors.text }]} numberOfLines={1}>{item.brand}</Text>
+                    <Text style={[styles.brandName, { color: theme.colors.text }]} numberOfLines={1}>
+                      {item.brand}
+                    </Text>
                     <Text style={[styles.itemName, { color: theme.colors.textSecondary }]} numberOfLines={2}>
                       {item.name}
                     </Text>
-
-                    <View style={styles.priceRow}>
-                      <Text style={[styles.price, { color: theme.colors.text }]} numberOfLines={1}>
-                        {formatPriceDetail(item.price, item.discount || getProductDiscount(item)).formattedText}
-                      </Text>
-                    </View>
+                    <Text style={[styles.priceText, { color: theme.colors.text }]} numberOfLines={1}>
+                      {priceInfo.formattedText}
+                    </Text>
                   </View>
-                </TouchableOpacity>
 
-                {/* Delete button — separate from nav area */}
-                <TouchableOpacity
-                  style={[styles.removeButton, { backgroundColor: isDark ? 'rgba(30,30,30,0.92)' : 'rgba(255,255,255,0.92)', borderColor: theme.colors.border }]}
-                  activeOpacity={0.85}
-                  onPress={() => removeFromWishlist(item.id)}
-                >
-                  <Trash2 size={18} color={theme.colors.primary} />
-                </TouchableOpacity>
-              </View>
-            ))}
+                  {/* Move to Bag */}
+                  <TouchableOpacity
+                    style={[styles.moveToBagBtn, { backgroundColor: theme.colors.primary }]}
+                    onPress={() => handleMoveToBag(item)}
+                    activeOpacity={0.88}
+                  >
+                    <ShoppingBag size={14} color="#fff" style={{ marginRight: 6 }} />
+                    <Text style={styles.moveToBagText}>MOVE TO BAG</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
           </View>
         </ScrollView>
       )}
@@ -118,118 +181,109 @@ export default function Wishlist() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 12,
+    paddingHorizontal: 20,
+    paddingTop: 52,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "800",
+  headerTitle: { fontSize: 24, fontWeight: "900", letterSpacing: 0.3 },
+  headerSub: { fontSize: 13, fontWeight: "500", marginTop: 2 },
+  countBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    gap: 4,
   },
+  countBadgeText: { fontSize: 13, fontWeight: "800" },
   emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 24,
-    gap: 12,
+    paddingHorizontal: 32,
+    gap: 14,
   },
-  emptyTitle: {
-    textAlign: "center",
-    fontSize: 14,
-    fontWeight: "600",
+  emptyIconWrap: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
   },
-  emptySubtitle: {
-    textAlign: "center",
-    fontSize: 12,
-    marginTop: -4,
-  },
-  loginButton: {
+  emptyTitle: { fontSize: 20, fontWeight: "800", textAlign: "center" },
+  emptySubtitle: { fontSize: 14, textAlign: "center", lineHeight: 20, fontWeight: "400" },
+  ctaButton: {
     marginTop: 8,
-    paddingHorizontal: 26,
-    paddingVertical: 12,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
     borderRadius: 999,
+    flexDirection: "row",
+    alignItems: "center",
   },
-  loginButtonText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 0.5,
-  },
-  listContent: {
-    paddingHorizontal: 14,
-    paddingBottom: 24,
-    paddingTop: 10,
-  },
+  ctaButtonText: { color: "#fff", fontSize: 13, fontWeight: "900", letterSpacing: 0.8 },
+  listContent: { padding: 14, paddingBottom: 32 },
   listGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    gap: 12 as any,
+    gap: 14 as any,
   },
+  listGridDesktop: { gap: 18 as any },
   wishlistItem: {
-    width: "48%",
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     overflow: "hidden",
-    marginBottom: 12,
+    marginBottom: 4,
     position: "relative",
     shadowColor: "#000",
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.07,
     shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
-  itemImage: {
-    width: "100%",
-    height: 160,
-    resizeMode: "cover",
-  },
-  itemInfo: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  brandName: {
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  itemName: {
-    marginTop: 6,
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 16,
-  },
-  priceRow: {
-    marginTop: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  price: {
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  discount: {
-    fontSize: 11,
-    fontWeight: "900",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+  imageWrap: { position: "relative" },
+  itemImage: { width: "100%", height: 200, resizeMode: "cover" },
+  discountBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: "#ff3f6c",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 999,
-    overflow: "hidden",
   },
-  removeButton: {
+  discountBadgeText: { color: "#fff", fontWeight: "900", fontSize: 11, letterSpacing: 0.3 },
+  removeBtn: {
     position: "absolute",
     top: 10,
     right: 10,
-    width: 38,
-    height: 38,
-    borderRadius: 999,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
+    zIndex: 10,
   },
+  itemInfo: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 6 },
+  brandName: { fontSize: 13, fontWeight: "900", letterSpacing: 0.3 },
+  itemName: { marginTop: 4, fontSize: 12, fontWeight: "500", lineHeight: 16, marginBottom: 6 },
+  priceText: { fontSize: 14, fontWeight: "900" },
+  moveToBagBtn: {
+    marginHorizontal: 12,
+    marginBottom: 12,
+    paddingVertical: 10,
+    borderRadius: 999,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  moveToBagText: { color: "#fff", fontSize: 12, fontWeight: "900", letterSpacing: 0.6 },
 });

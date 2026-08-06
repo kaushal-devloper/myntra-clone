@@ -234,12 +234,14 @@ export default function Bag() {
   if (!isAuthenticated) {
     return (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        <View style={[styles.header, { backgroundColor: theme.colors.card, borderBottomWidth: 1, borderBottomColor: theme.colors.border }]}>
-          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Bag</Text>
+        <View style={[styles.header, { backgroundColor: theme.colors.card, borderBottomColor: theme.colors.border }]}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>My Bag</Text>
         </View>
 
         <View style={styles.emptyState}>
-          <Heart size={64} color={theme.colors.primary} />
+          <View style={[styles.emptyIconWrap, { backgroundColor: theme.colors.subduedBrand }]}>
+            <Heart size={52} color={theme.colors.primary} />
+          </View>
           <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
             Please login to view your bag
           </Text>
@@ -249,7 +251,7 @@ export default function Bag() {
             onPress={() => router.push('/login' as any)}
             activeOpacity={0.9}
           >
-            <Text style={styles.loginButtonText}>LOGIN</Text>
+            <Text style={styles.loginButtonText}>LOGIN / SIGN UP</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -258,8 +260,13 @@ export default function Bag() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.header, { backgroundColor: theme.colors.card, borderBottomWidth: 1, borderBottomColor: theme.colors.border }]}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Bag</Text>
+      <View style={[styles.header, { backgroundColor: theme.colors.card, borderBottomColor: theme.colors.border }]}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>My Bag</Text>
+        {items.length > 0 && (
+          <View style={[{ backgroundColor: theme.colors.subduedBrand, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 }]}>
+            <Text style={[styles.headerCount, { color: theme.colors.primary }]}>{items.length} item{items.length > 1 ? 's' : ''}</Text>
+          </View>
+        )}
       </View>
 
       <ScrollView
@@ -342,17 +349,38 @@ export default function Bag() {
                 </View>
 
                 <View style={[styles.summaryWrap, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                  <Text style={[styles.summaryTitle, { color: theme.colors.text }]}>PRICE DETAILS</Text>
                   <View style={styles.summaryRow}>
-                    <Text style={[styles.summaryLabel, { color: theme.colors.text }]}>Total</Text>
+                    <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>MRP ({items.length} item{items.length > 1 ? 's' : ''})</Text>
                     <Text style={[styles.summaryValue, { color: theme.colors.text }]}>₹{totalPrice}</Text>
                   </View>
-
+                  <View style={styles.summaryRow}>
+                    <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>Delivery Charges</Text>
+                    <Text style={[styles.summaryValue, { color: '#03a685' }]}>FREE</Text>
+                  </View>
+                  <View style={[styles.summaryDivider, { backgroundColor: theme.colors.borderLight }]} />
+                  <View style={styles.summaryRow}>
+                    <Text style={[styles.summaryFinalLabel, { color: theme.colors.text }]}>Total Amount</Text>
+                    <Text style={styles.summaryFinalValue}>₹{totalPrice}</Text>
+                  </View>
+                  <View style={[styles.trustRow, { borderTopColor: theme.colors.borderLight }]}>
+                    <View style={styles.trustItem}>
+                      <Text style={{ fontSize: 20 }}>🔒</Text>
+                      <Text style={[styles.trustText, { color: theme.colors.textSecondary }]}>Secure{"\n"}Payment</Text>
+                    </View>
+                    <View style={styles.trustItem}>
+                      <Text style={{ fontSize: 20 }}>🚚</Text>
+                      <Text style={[styles.trustText, { color: theme.colors.textSecondary }]}>Free{"\n"}Delivery</Text>
+                    </View>
+                    <View style={styles.trustItem}>
+                      <Text style={{ fontSize: 20 }}>↩️</Text>
+                      <Text style={[styles.trustText, { color: theme.colors.textSecondary }]}>Easy{"\n"}Returns</Text>
+                    </View>
+                  </View>
                   <TouchableOpacity
                     style={[styles.checkoutButton, { backgroundColor: theme.colors.primary }]}
                     activeOpacity={0.9}
-                    onPress={() => {
-                      setShowDetailModal(true);
-                    }}
+                    onPress={() => { setShowDetailModal(true); }}
                   >
                     <Text style={styles.checkoutButtonText}>PLACE ORDER</Text>
                   </TouchableOpacity>
@@ -654,97 +682,117 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 12,
+    paddingHorizontal: 20,
+    paddingTop: 52,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+    flex: 1,
+  },
+  headerCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    gap: 12,
+    paddingHorizontal: 32,
+    gap: 14,
+  },
+  emptyIconWrap: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   emptyTitle: {
     textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: '800',
   },
   loginButton: {
     marginTop: 8,
-    paddingHorizontal: 26,
-    paddingVertical: 12,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
     borderRadius: 999,
   },
   loginButtonText: {
     color: '#fff',
     fontSize: 13,
     fontWeight: '900',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   listContent: {
     paddingHorizontal: 14,
-    paddingBottom: 24,
-    paddingTop: 10,
+    paddingBottom: 32,
+    paddingTop: 12,
   },
   listGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 12 as any,
+    gap: 14 as any,
   },
   bagItem: {
     width: '48%',
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
     marginBottom: 12,
     position: 'relative',
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    elevation: 5,
   },
   itemImage: {
     width: '100%',
-    height: 160,
+    height: 190,
     resizeMode: 'cover',
   },
   itemInfo: {
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   brandName: {
     fontSize: 13,
     fontWeight: '900',
+    letterSpacing: 0.3,
   },
   itemName: {
-    marginTop: 6,
+    marginTop: 4,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
     lineHeight: 16,
   },
   priceRow: {
-    marginTop: 10,
+    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: 6,
   },
   price: {
     fontSize: 14,
     fontWeight: '900',
+    color: '#ff3f6c',
   },
   discount: {
     fontSize: 11,
     fontWeight: '900',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
     overflow: 'hidden',
   },
@@ -752,51 +800,123 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    width: 38,
-    height: 38,
+    width: 36,
+    height: 36,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
+    zIndex: 10,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 6,
+  },
+  qtyBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,63,108,0.25)',
+  },
+  qtyBtnText: {
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  qtyValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    minWidth: 22,
+    textAlign: 'center',
+  },
+  sizeTag: {
+    fontSize: 11,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginLeft: 4,
   },
   summaryWrap: {
-    marginTop: 6,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 16,
+    marginTop: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 20,
     borderWidth: 1,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    marginBottom: 14,
   },
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   summaryLabel: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '500',
   },
   summaryValue: {
-    fontSize: 16,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  summaryDivider: {
+    height: 1,
+    marginVertical: 10,
+  },
+  summaryFinalLabel: {
+    fontSize: 15,
     fontWeight: '900',
+  },
+  summaryFinalValue: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#ff3f6c',
+  },
+  trustRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+  },
+  trustItem: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  trustText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   checkoutButton: {
     paddingHorizontal: 26,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 999,
     alignItems: 'center',
+    marginTop: 14,
   },
   checkoutButtonText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   actionButtonContainer: {
     borderTopWidth: 1,
     paddingVertical: 10,
     alignItems: 'center',
   },
+
   actionButtonText: {
     fontSize: 12,
     fontWeight: '800',
